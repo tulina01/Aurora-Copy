@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora - Tenant Management System</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/animations.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="images/aurora-logo.png" alt="Aurora Logo" class="aurora-logo-img">
+                <span>Aurora</span>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#dashboard" class="nav-link active" data-page="dashboard">
+                        <i class="fas fa-tachometer-alt"></i>
+                        Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#tenants" class="nav-link" data-page="tenants">
+                        <i class="fas fa-users"></i>
+                        Tenants
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#maintenance" class="nav-link" data-page="maintenance">
+                        <i class="fas fa-tools"></i>
+                        Maintenance
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#apartments" class="nav-link" data-page="apartments">
+                        <i class="fas fa-building"></i>
+                        Apartments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#inventory" class="nav-link" data-page="inventory">
+                        <i class="fas fa-boxes"></i>
+                        Inventory
+                    </a>
+                </li>
+            </ul>
+            <div class="nav-toggle">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Message Container -->
+    <div id="message-container" class="message"></div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+            <div class="page-header">
+                <h1>Dashboard</h1>
+                <p>Welcome to Aurora Tenant Management System</p>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="100">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="total-tenants">0</h3>
+                        <p>Total Tenants</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="200">
+                    <div class="stat-icon">
+                        <i class="fas fa-home"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="occupied-units">0</h3>
+                        <p>Occupied Units</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="300">
+                    <div class="stat-icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="pending-maintenance">0</h3>
+                        <p>Pending Maintenance</p>
+                    </div>
+                </div>
+                
+                <div class="stat-card" data-aos="fade-up" data-aos-delay="400">
+                    <div class="stat-icon">
+                        <span class="stat-icon-text" aria-hidden="true">Rs.</span>
+                    </div>
+                    <div class="stat-content">
+                        <h3 id="monthly-revenue">Rs. 0.00</h3>
+                        <p>Monthly Revenue</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-card" data-aos="fade-right">
+                    <h3>Recent Tenants</h3>
+                    <div class="recent-list" id="recent-tenants">
+                        <!-- Recent tenants will be populated here -->
+                    </div>
+                </div>
+                
+                <div class="dashboard-card" data-aos="fade-left">
+                    <h3>Quick Actions</h3>
+                    <div class="quick-actions">
+                        <button class="action-btn" id="dashboard-add-tenant-btn">
+                            <i class="fas fa-plus"></i>
+                            Add New Tenant
+                        </button>
+                        <button class="action-btn" id="dashboard-maintenance-btn">
+                            <i class="fas fa-tools"></i>
+                            Report Maintenance
+                        </button>
+                        <button class="action-btn" id="dashboard-inventory-btn">
+                            <i class="fas fa-boxes"></i>
+                            Update Inventory
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tenants Page -->
+        <div id="tenants" class="page">
+            <div class="page-header">
+                <h1>Tenant Management</h1>
+                <button class="btn-primary" id="add-tenant-btn">
+                    <i class="fas fa-plus"></i>
+                    Add New Tenant
+                </button>
+            </div>
+            
+            <div class="filters">
+                <input type="text" id="tenant-search" placeholder="Search tenants..." class="search-input">
+                <select id="status-filter" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="pending">Pending</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Apartment</th>
+                            <th>Contact</th>
+                            <th>Check-in Date</th>
+                            <th>Rent Amount</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenants-table-body">
+                        <!-- Tenants data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Maintenance Page -->
+        <div id="maintenance" class="page">
+            <div class="page-header">
+                <h1>Maintenance Tracking</h1>
+                <button class="btn-primary" id="add-maintenance-btn">
+                    <i class="fas fa-plus"></i>
+                    New Maintenance Request
+                </button>
+            </div>
+            
+            <div class="maintenance-grid">
+                <div class="maintenance-card">
+                    <h3>Pending Requests</h3>
+                    <div class="maintenance-list" id="pending-maintenance-list">
+                        <!-- Pending maintenance requests -->
+                    </div>
+                </div>
+                
+                <div class="maintenance-card">
+                    <h3>Completed Requests</h3>
+                    <div class="maintenance-list" id="completed-maintenance-list">
+                        <!-- Completed maintenance requests -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Apartments Page -->
+        <div id="apartments" class="page">
+            <div class="page-header">
+                <h1>Apartments Overview</h1>
+                <p>Manage and view details for all apartments</p>
+                <button class="btn-primary" id="add-apartment-btn">
+                    <i class="fas fa-plus"></i>
+                    Add Apartment
+                </button>
+            </div>
+            
+            <div class="apartments-grid" id="apartments-grid">
+                <!-- Apartments will be populated here -->
+            </div>
+        </div>
+
+        <!-- Inventory Page -->
+        <div id="inventory" class="page">
+            <div class="page-header">
+                <h1>Inventory Management</h1>
+                <button class="btn-primary" id="add-inventory-btn">
+                    <i class="fas fa-plus"></i>
+                    Add Item
+                </button>
+            </div>
+            
+            <div class="inventory-tabs">
+                <button class="tab-btn active" data-tab="furniture">Furniture</button>
+                <button class="tab-btn" data-tab="appliances">Appliances</button>
+                <button class="tab-btn" data-tab="utensils">Utensils</button>
+            </div>
+            
+            <div class="inventory-content">
+                <div id="furniture-tab" class="tab-content active">
+                    <div class="inventory-grid" id="furniture-grid">
+                        <!-- Furniture items -->
+                    </div>
+                </div>
+                
+                <div id="appliances-tab" class="tab-content">
+                    <div class="inventory-grid" id="appliances-grid">
+                        <!-- Appliance items -->
+                    </div>
+                </div>
+                
+                <div id="utensils-tab" class="tab-content">
+                    <div class="inventory-grid" id="utensils-grid">
+                        <!-- Utensil items -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modals -->
+    <!-- Add Tenant Modal -->
+    <div id="add-tenant-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Tenant</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="add-tenant-form" class="modal-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tenant-name">Full Name *</label>
+                        <input type="text" id="tenant-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tenant-phone">Phone Number *</label>
+                        <input type="tel" id="tenant-phone" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tenant-email">Email *</label>
+                        <input type="email" id="tenant-email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tenant-apartment-number">Apartment Number *</label>
+                        <input type="text" id="tenant-apartment-number" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="checkin-date">Check-in Date *</label>
+                        <input type="date" id="checkin-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="checkout-date">Check-out Date</label>
+                        <input type="date" id="checkout-date">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rental-basis">Rental Basis *</label>
+                        <select id="rental-basis" required>
+                            <option value="">Select Basis</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="daily">Daily</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="currency">Currency *</label>
+                        <select id="currency" required>
+                            <option value="">Select Currency</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="EUR">EUR (€)</option>
+                            <option value="LKR">LKR (Rs)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="rent-amount">Rent Amount *</label>
+                        <input type="number" id="rent-amount" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="deposit">Deposit Amount</label>
+                        <input type="number" id="deposit" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="booking-source">Booking Source</label>
+                        <select id="booking-source">
+                            <option value="">Select Source</option>
+                            <option value="online">Online (Booking.com)</option>
+                            <option value="in-person">In Person</option>
+                            <option value="call">Phone Call</option>
+                            <option value="travel-agent">Travel Agent</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <!-- Empty div for layout balance -->
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="special-requests">Special Requests</label>
+                    <textarea id="special-requests" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="remarks">Other Remarks</label>
+                    <textarea id="remarks" rows="3"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <div id="form-general-error" class="form-general-error" style="display: none;"></div>
+                    <button type="button" class="btn-secondary" data-modal="add-tenant-modal">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Tenant</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Apartment Modal -->
+    <div id="add-apartment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="apartment-modal-title">Add New Apartment</h2>
+                <button class="modal-close" data-modal="add-apartment-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="add-apartment-form" class="modal-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="apartment-number">Apartment Number *</label>
+                        <input type="text" id="apartment-number" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="apartment-size">Size (Square Feet) *</label>
+                        <input type="number" id="apartment-size" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="apartment-bedrooms">Number of Bedrooms *</label>
+                        <input type="number" id="apartment-bedrooms" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="apartment-bathrooms">Number of Bathrooms *</label>
+                        <input type="number" id="apartment-bathrooms" min="1" step="0.5" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apartment-status">Status</label>
+                    <select id="apartment-status">
+                        <option value="available">Available</option>
+                        <option value="occupied">Occupied</option>
+                        <option value="maintenance">Under Maintenance</option>
+                    </select>
+                </div>
+                
+                <div class="form-actions">
+                    <div id="apartment-form-general-error" class="form-general-error" style="display: none;"></div>
+                    <button type="button" class="btn-secondary" data-modal="add-apartment-modal">Cancel</button>
+                    <button type="submit" class="btn-primary" id="apartment-submit-btn">Add Apartment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Apartment Details Modal -->
+    <div id="apartment-details-modal" class="modal">
+        <div class="modal-content apartment-details-modal">
+            <div class="modal-header">
+                <h2 id="apartment-details-title">Apartment Details</h2>
+                <button class="modal-close" data-modal="apartment-details-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="apartment-details-content">
+                <div class="apartment-details-grid">
+                    <!-- Apartment Info Section -->
+                    <div class="detail-section">
+                        <h3><i class="fas fa-building"></i> Apartment Information</h3>
+                        <div class="detail-item">
+                            <label>Apartment Number:</label>
+                            <span id="detail-apartment-number">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Size:</label>
+                            <span id="detail-apartment-size">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Bedrooms:</label>
+                            <span id="detail-apartment-bedrooms">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Bathrooms:</label>
+                            <span id="detail-apartment-bathrooms">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Status:</label>
+                            <span id="detail-apartment-status" class="status-badge">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Current Tenant Section -->
+                    <div class="detail-section">
+                        <h3><i class="fas fa-user"></i> Current Tenant</h3>
+                        <div id="detail-tenant-info">
+                            <p class="no-data">No tenant assigned</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory Section -->
+                <div class="detail-section full-width">
+                    <h3><i class="fas fa-boxes"></i> Inventory Items</h3>
+                    <div id="detail-apartment-inventory" class="inventory-list">
+                        <p class="no-data">No inventory items</p>
+                    </div>
+                </div>
+
+                <!-- Maintenance Section -->
+                <div class="detail-section full-width">
+                    <h3><i class="fas fa-tools"></i> Maintenance Requests</h3>
+                    <div id="detail-apartment-maintenance" class="maintenance-list">
+                        <p class="no-data">No maintenance requests</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tenant Details Modal -->
+    <div id="tenant-details-modal" class="modal">
+        <div class="modal-content tenant-details-modal">
+            <div class="modal-header">
+                <h2>Tenant Details</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="tenant-details-content">
+                <div class="tenant-details-grid">
+                    <div class="detail-section">
+                        <h3><i class="fas fa-user"></i> Personal Information</h3>
+                        <div class="detail-item">
+                            <label>Full Name:</label>
+                            <span id="detail-name">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Phone Number:</label>
+                            <span id="detail-phone">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Email:</label>
+                            <span id="detail-email">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-home"></i> Accommodation Details</h3>
+                        <div class="detail-item">
+                            <label>Apartment Number:</label>
+                            <span id="detail-apartment">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Check-in Date:</label>
+                            <span id="detail-checkin">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Check-out Date:</label>
+                            <span id="detail-checkout">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Rental Basis:</label>
+                            <span id="detail-rental-basis">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-dollar-sign"></i> Financial Information</h3>
+                        <div class="detail-item">
+                            <label>Currency:</label>
+                            <span id="detail-currency">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Rent Amount:</label>
+                            <span id="detail-rent-amount">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Deposit Amount:</label>
+                            <span id="detail-deposit">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Booking Source:</label>
+                            <span id="detail-booking-source">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3><i class="fas fa-info-circle"></i> Additional Information</h3>
+                        <div class="detail-item">
+                            <label>Status:</label>
+                            <span id="detail-status">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Special Requests:</label>
+                            <span id="detail-special-requests">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Remarks:</label>
+                            <span id="detail-remarks">-</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" data-modal="tenant-details-modal">Close</button>
+                    <button type="button" class="btn-primary" id="edit-from-details-btn">
+                        <i class="fas fa-edit"></i>
+                        Edit Tenant
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance Modal -->
+    <div id="maintenance-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>New Maintenance Request</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="maintenance-form" class="modal-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="maintenance-apartment">Apartment Number *</label>
+                        <input type="text" id="maintenance-apartment" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenance-type">Issue Type *</label>
+                        <select id="maintenance-type" required>
+                            <option value="">Select Type</option>
+                            <option value="plumbing">Plumbing</option>
+                            <option value="electrical">Electrical</option>
+                            <option value="appliance">Appliance</option>
+                            <option value="structural">Structural</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="maintenance-description">Description *</label>
+                    <textarea id="maintenance-description" rows="4" required></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="maintenance-priority">Priority</label>
+                        <select id="maintenance-priority">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="maintenance-date">Report Date</label>
+                        <input type="date" id="maintenance-date">
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" data-modal="maintenance-modal">Cancel</button>
+                    <button type="submit" class="btn-primary">Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div id="inventory-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add Inventory Item</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="inventory-form" class="modal-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="inventory-apartment">Apartment Number *</label>
+                        <input type="text" id="inventory-apartment" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inventory-category">Category *</label>
+                        <select id="inventory-category" required>
+                            <option value="">Select Category</option>
+                            <option value="furniture">Furniture</option>
+                            <option value="appliances">Appliances</option>
+                            <option value="utensils">Utensils</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="item-type">Item Type *</label>
+                        <input type="text" id="item-type" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-count">Count *</label>
+                        <input type="number" id="item-count" min="1" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="item-notes">Notes</label>
+                    <textarea id="item-notes" rows="3"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" data-modal="inventory-modal">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/animations.js"></script>
+</body>
+</html>

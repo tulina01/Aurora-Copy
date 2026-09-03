@@ -1,0 +1,388 @@
+/* Micro Animations and Enhanced Interactions */
+
+/* Hover Effects */
+.stat-card:hover .stat-icon {
+    transform: scale(1.1) rotate(5deg);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.stat-card:hover .stat-content h3 {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
+
+/* Button Animations */
+.btn-primary, .action-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before, .action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-primary:hover::before, .action-btn:hover::before {
+    left: 100%;
+}
+
+/* Card Entrance Animations */
+.stat-card {
+    animation: slideInFromBottom 0.6s ease forwards;
+    opacity: 0;
+    transform: translateY(30px);
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes slideInFromBottom {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Dashboard Cards Animation */
+.dashboard-card {
+    animation: fadeInScale 0.8s ease forwards;
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.dashboard-card:nth-child(1) { animation-delay: 0.2s; }
+.dashboard-card:nth-child(2) { animation-delay: 0.4s; }
+
+@keyframes fadeInScale {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Navigation Link Animations */
+.nav-link {
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: #4AA0BA;
+    transition: all 0.3s ease;
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+    width: 80%;
+}
+
+/* Table Row Animations */
+.data-table tbody tr {
+    animation: slideInFromLeft 0.5s ease forwards;
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+.data-table tbody tr:nth-child(1) { animation-delay: 0.1s; }
+.data-table tbody tr:nth-child(2) { animation-delay: 0.2s; }
+.data-table tbody tr:nth-child(3) { animation-delay: 0.3s; }
+.data-table tbody tr:nth-child(4) { animation-delay: 0.4s; }
+.data-table tbody tr:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes slideInFromLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Modal Animations */
+.modal-content {
+    animation: modalSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8) translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Form Input Focus Animations */
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    animation: inputFocus 0.3s ease;
+}
+
+@keyframes inputFocus {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Status Badge Animations */
+.status-badge {
+    animation: badgePulse 2s infinite;
+}
+
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Recent Item Hover Effects */
+.recent-item {
+    position: relative;
+    overflow: hidden;
+}
+
+.recent-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(74, 160, 186, 0.1), transparent);
+    transition: left 0.5s;
+}
+
+.recent-item:hover::before {
+    left: 100%;
+}
+
+.recent-item-avatar {
+    animation: avatarFloat 3s ease-in-out infinite;
+}
+
+@keyframes avatarFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+
+/* Maintenance Item Animations */
+.maintenance-item {
+    animation: maintenanceSlideIn 0.6s ease forwards;
+    opacity: 0;
+    transform: translateX(-30px);
+}
+
+.maintenance-item:nth-child(1) { animation-delay: 0.1s; }
+.maintenance-item:nth-child(2) { animation-delay: 0.2s; }
+.maintenance-item:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes maintenanceSlideIn {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Inventory Item Animations */
+.inventory-item {
+    animation: inventoryFadeIn 0.8s ease forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.inventory-item:nth-child(1) { animation-delay: 0.1s; }
+.inventory-item:nth-child(2) { animation-delay: 0.2s; }
+.inventory-item:nth-child(3) { animation-delay: 0.3s; }
+.inventory-item:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes inventoryFadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tab Button Animations */
+.tab-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.tab-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.tab-btn:hover::before {
+    left: 100%;
+}
+
+.tab-btn.active {
+    animation: tabActive 0.3s ease;
+}
+
+@keyframes tabActive {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* Search Input Animations */
+.search-input:focus {
+    animation: searchFocus 0.3s ease;
+}
+
+@keyframes searchFocus {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
+
+/* Loading Animation Enhancements */
+.loading {
+    animation: enhancedSpin 1.2s linear infinite;
+}
+
+@keyframes enhancedSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Success/Error Message Animations */
+.message {
+    animation: messageSlideIn 0.5s ease;
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Empty State Animations */
+.empty-state i {
+    animation: emptyStateFloat 4s ease-in-out infinite;
+}
+
+@keyframes emptyStateFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-10px) rotate(5deg); }
+    75% { transform: translateY(-5px) rotate(-5deg); }
+}
+
+/* Page Transition Animations */
+.page {
+    animation: pageTransition 0.5s ease;
+}
+
+@keyframes pageTransition {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Animations */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Hover State Enhancements */
+.stat-card:hover {
+    animation: cardHover 0.3s ease;
+}
+
+@keyframes cardHover {
+    0% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-8px) scale(1.02); }
+    100% { transform: translateY(-5px) scale(1); }
+}
+
+/* Icon Animations */
+.nav-link i,
+.action-btn i {
+    transition: transform 0.3s ease;
+}
+
+.nav-link:hover i,
+.action-btn:hover i {
+    transform: scale(1.2) rotate(5deg);
+}
+
+/* Form Validation Animations */
+.form-group input:invalid:focus,
+.form-group select:invalid:focus,
+.form-group textarea:invalid:focus {
+    animation: shake 0.5s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Smooth Scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Focus Indicators for Accessibility */
+.btn-primary:focus,
+.action-btn:focus,
+.nav-link:focus,
+.tab-btn:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* Print Styles */
+@media print {
+    .navbar,
+    .modal,
+    .btn-primary,
+    .action-btn {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-top: 0;
+    }
+    
+    .page {
+        display: block !important;
+    }
+}
