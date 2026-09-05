@@ -2,7 +2,7 @@
 
 class APIService {
     constructor() {
-        this.baseURL = 'http://localhost:3000/api';
+        this.baseURL = '/api';
         this.endpoints = {
             tenants: '/tenants',
             maintenance: '/maintenance',
@@ -15,9 +15,19 @@ class APIService {
     // Generic request method
     async request(endpoint, options = {}) {
         const url = `${this.baseURL}${endpoint}`;
+
+        const authHeaders = {};
+        if (window.auth && typeof window.auth.getToken === 'function') {
+            const token = await window.auth.getToken();
+            if (token) {
+                authHeaders['Authorization'] = `Bearer ${token}`;
+            }
+        }
+
         const config = {
             headers: {
                 'Content-Type': 'application/json',
+                ...authHeaders,
                 ...options.headers
             },
             ...options

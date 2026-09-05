@@ -9,7 +9,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
+<body class="auth-checking">
+    <!-- Netlify Identity login gate -->
+    <div id="auth-gate">
+        <div class="auth-gate-content">
+            <img src="images/aurora-logo.png" alt="Aurora Logo" class="auth-gate-logo">
+            <h1>Aurora</h1>
+            <p>Sign in to manage tenants, maintenance, and inventory.</p>
+            <button id="auth-login-btn" class="btn-primary">Log In</button>
+        </div>
+    </div>
+
+    <div id="app-shell">
     <!-- Navigation -->
     <nav class="navbar">
         <div class="nav-container">
@@ -49,6 +60,12 @@
                     </a>
                 </li>
             </ul>
+            <div class="nav-user" id="nav-user">
+                <span class="nav-user-email" id="nav-user-email"></span>
+                <button class="nav-user-logout" id="auth-logout-btn" title="Log out">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
             <div class="nav-toggle">
                 <span class="bar"></span>
                 <span class="bar"></span>
@@ -688,6 +705,10 @@
         </div>
     </div>
 
+    </div>
+
+    <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+    <script src="js/auth.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/animations.js"></script>

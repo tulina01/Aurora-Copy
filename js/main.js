@@ -9,17 +9,30 @@ let apartments = [];
 let navLinks, pages, searchInput, statusFilter;
 
 // Initialize the application
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Aurora Tenant Management System initializing...');
-    
+
+    initializeApp();
+    setupEventListeners();
+
+    // js/auth.js gates data loading behind a Netlify Identity session. If it
+    // already unlocked the UI before this listener ran (e.g. the Identity
+    // widget wasn't available and auth.js fell back to unlocking locally),
+    // start loading data now instead of waiting for a login event that will
+    // never come.
+    if (document.body.classList.contains('authenticated')) {
+        window.onAuthReady();
+    }
+});
+
+// Called by js/auth.js once a Netlify Identity session is confirmed
+// (or once auth.js decides to unlock the UI without one, for local dev).
+window.onAuthReady = async function() {
     try {
-        initializeApp();
-        setupEventListeners();
-        
         // Check if backend is available
         console.log('🔍 Checking backend connection...');
         const backendAvailable = await api.checkConnection();
-        
+
         if (backendAvailable) {
             console.log('✅ Backend connected successfully');
             await loadDataFromAPI();
@@ -27,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('⚠️ Backend not available, using localStorage');
             loadSampleData();
         }
-        
+
         updateDashboard();
         console.log('✅ Application initialized successfully');
     } catch (error) {
@@ -36,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         loadSampleData();
         updateDashboard();
     }
-});
+};
 
 // Initialize app
 function initializeApp() {
