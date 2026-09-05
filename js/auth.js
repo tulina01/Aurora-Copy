@@ -32,6 +32,49 @@
         setBodyState('unauthenticated');
     }
 
+    // Works around a netlify-identity-widget bug: when opening an invite,
+    // confirmation, recovery, or email-change form (i.e. anything driven by
+    // a *_token in the URL hash), the widget can end up with two elements
+    // sharing id="netlify-identity-widget" -- an empty one left visible and
+    // full-screen (silently blocking every click on the page), and the one
+    // actually holding the rendered form left hidden. This does not happen
+    // for a normal login/signup click, only the hash-token-driven flows.
+    // Poll briefly for that exact broken state and swap which one is shown.
+    function fixMisplacedIdentityModal() {
+        const iframes = Array.from(document.querySelectorAll('iframe#netlify-identity-widget'));
+        if (iframes.length < 2) {
+            return false;
+        }
+
+        const withContent = iframes.find((el) => {
+            try {
+                return el.contentDocument && el.contentDocument.body && el.contentDocument.body.children.length > 0;
+            } catch (err) {
+                return false;
+            }
+        });
+        const empty = iframes.find((el) => el !== withContent);
+
+        if (!withContent || !empty) {
+            return false;
+        }
+        if (window.getComputedStyle(withContent).display === 'none' && window.getComputedStyle(empty).display !== 'none') {
+            empty.style.display = 'none';
+            withContent.style.display = 'block';
+            return true;
+        }
+        return false;
+    }
+
+    function watchForMisplacedIdentityModal() {
+        const start = Date.now();
+        const interval = setInterval(() => {
+            if (fixMisplacedIdentityModal() || Date.now() - start > 8000) {
+                clearInterval(interval);
+            }
+        }, 300);
+    }
+
     const auth = {
         getUser() {
             return currentUser;
@@ -74,7 +117,13 @@
         }
     });
 
+    const hasIdentityHashToken = /(invite_token|confirmation_token|recovery_token|email_change_token)=/.test(window.location.hash);
+
     if (window.netlifyIdentity) {
+        if (hasIdentityHashToken) {
+            watchForMisplacedIdentityModal();
+        }
+
         window.netlifyIdentity.on('init', function (user) {
             if (user) {
                 onLoggedIn(user);
