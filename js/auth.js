@@ -50,6 +50,8 @@
         login() {
             if (window.netlifyIdentity) {
                 window.netlifyIdentity.open('login');
+            } else {
+                console.warn('[auth] netlifyIdentity is not defined, cannot open login modal');
             }
         },
         logout() {

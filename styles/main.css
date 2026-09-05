@@ -112,7 +112,12 @@ body.authenticated #auth-gate {
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #00B4D8, #000000);
-    z-index: 5000;
+    /* #app-shell is display:none the whole time this gate is visible, so it
+       only needs to sit above ordinary content -- not above the Netlify
+       Identity widget's own iframe, which it injects at z-index: 99. A
+       higher value here would render the gate on top of the login modal
+       and make it look like clicking "Log In" did nothing. */
+    z-index: 10;
 }
 
 .auth-gate-content {
