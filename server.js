@@ -11,8 +11,17 @@ const PORT = process.env.PORT || 3000;
 // instead of routing them through this server)
 app.use(express.static(path.join(__dirname)));
 
-// Serve the main HTML file for all other non-API routes
+// Serve the main HTML file for all other non-API routes.
+// /.netlify/* is excluded so it 404s locally instead of matching this
+// catch-all: the Identity widget probes /.netlify/identity/settings to
+// detect whether it's running against a real Netlify site, and needs that
+// probe to fail cleanly (as it does in production, where Netlify's own
+// infrastructure handles /.netlify/* before this app ever sees it) so it
+// can fall back to its "Development Settings" local-server prompt.
 app.get('*', (req, res) => {
+    if (req.path.startsWith('/.netlify')) {
+        return res.status(404).end();
+    }
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
