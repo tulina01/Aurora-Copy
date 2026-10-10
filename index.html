@@ -138,7 +138,10 @@
                 <div class="dashboard-card" data-aos="fade-right">
                     <h3>Recent Tenants</h3>
                     <div class="recent-list" id="recent-tenants">
-                        <!-- Recent tenants will be populated here -->
+                        <div class="loading-state">
+                            <div class="loading-spinner" aria-hidden="true"></div>
+                            <p>Loading recent tenants...</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -196,7 +199,14 @@
                         </tr>
                     </thead>
                     <tbody id="tenants-table-body">
-                        <!-- Tenants data will be populated here -->
+                        <tr>
+                            <td colspan="7">
+                                <div class="loading-state">
+                                    <div class="loading-spinner" aria-hidden="true"></div>
+                                    <p>Loading tenants...</p>
+                                </div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

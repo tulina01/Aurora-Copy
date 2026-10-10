@@ -703,8 +703,42 @@ async function loadDataFromAPI() {
     }
 }
 
+function getLoadingStateHTML(message = 'Loading...') {
+    return `
+        <div class="loading-state">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+function showRecentTenantsLoading() {
+    const container = document.getElementById('recent-tenants');
+    if (container) {
+        container.innerHTML = getLoadingStateHTML('Loading recent tenants...');
+    }
+}
+
+function showTenantsTableLoading() {
+    const tbody = document.getElementById('tenants-table-body');
+    if (tbody) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    ${getLoadingStateHTML('Loading tenants...')}
+                </td>
+            </tr>
+        `;
+    }
+}
+
 // Load tenants from API
 async function loadTenantsFromAPI() {
+    const tenantsPageActive = document.getElementById('tenants')?.classList.contains('active');
+    if (tenantsPageActive) {
+        showTenantsTableLoading();
+    }
+
     try {
         // First update all tenant statuses based on current dates
         await api.updateTenantStatuses();
@@ -1222,6 +1256,8 @@ async function updatePageContent(page) {
 
 // Update dashboard
 async function updateDashboard() {
+    showRecentTenantsLoading();
+
     try {
         // Get dashboard stats from API
         const statsResponse = await api.getTenantStats();
@@ -1259,6 +1295,8 @@ async function updateDashboard() {
                     </div>
                 `).join('');
             }
+        } else {
+            throw new Error(statsResponse.message || 'Failed to load dashboard stats');
         }
     } catch (error) {
         console.error('Error updating dashboard:', error);
@@ -1270,6 +1308,31 @@ async function updateDashboard() {
         const totalRevenue = tenants.reduce((sum, tenant) => sum + (Number(tenant.amountPaid) || 0), 0);
 
         document.getElementById('monthly-revenue').textContent = `Rs. ${totalRevenue.toFixed(2)}`;
+
+        const recentTenantsContainer = document.getElementById('recent-tenants');
+        const recentLocal = [...tenants]
+            .sort((a, b) => new Date(b.checkinDate) - new Date(a.checkinDate))
+            .slice(0, 5);
+
+        if (recentLocal.length === 0) {
+            recentTenantsContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-users"></i>
+                    <h3>No tenants yet</h3>
+                    <p>Add your first tenant to get started</p>
+                </div>
+            `;
+        } else {
+            recentTenantsContainer.innerHTML = recentLocal.map(tenant => `
+                <div class="recent-item">
+                    <div class="recent-item-avatar">${tenant.name.charAt(0).toUpperCase()}</div>
+                    <div class="recent-item-info">
+                        <h4>${tenant.name}</h4>
+                        <p>Apartment ${tenant.apartmentNumber} • ${formatDate(tenant.checkinDate)}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
     }
 }
 
@@ -1705,6 +1768,7 @@ async function handleTenantSearch(e) {
     const searchTerm = e.target.value;
     
     if (searchTerm.length > 0) {
+        showTenantsTableLoading();
         try {
             const response = await api.searchTenants(searchTerm);
             if (response.success) {
@@ -1713,6 +1777,7 @@ async function handleTenantSearch(e) {
             }
         } catch (error) {
             console.error('Error searching tenants:', error);
+            renderTenantsTable();
         }
     } else {
         // Load all tenants when search is cleared
@@ -1729,6 +1794,7 @@ async function handleTenantSearch(e) {
 async function handleStatusFilter(e) {
     const status = e.target.value;
     
+    showTenantsTableLoading();
     try {
         const params = status ? { status } : {};
         const response = await api.getTenants(params);
@@ -1738,6 +1804,7 @@ async function handleStatusFilter(e) {
         }
     } catch (error) {
         console.error('Error filtering tenants:', error);
+        renderTenantsTable();
     }
 }
 
