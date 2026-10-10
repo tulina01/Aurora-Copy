@@ -703,32 +703,28 @@ async function loadDataFromAPI() {
     }
 }
 
-function getLoadingStateHTML(message = 'Loading...') {
-    return `
-        <div class="loading-state">
-            <div class="loading-spinner" aria-hidden="true"></div>
-            <p>${message}</p>
-        </div>
-    `;
-}
+function showPageLoading(pageId, message = 'Loading...') {
+    const page = document.getElementById(pageId);
+    if (!page) return;
 
-function showRecentTenantsLoading() {
-    const container = document.getElementById('recent-tenants');
-    if (container) {
-        container.innerHTML = getLoadingStateHTML('Loading recent tenants...');
+    const overlay = page.querySelector('.page-loading-overlay');
+    if (overlay) {
+        const label = overlay.querySelector('p');
+        if (label) label.textContent = message;
+        overlay.setAttribute('aria-busy', 'true');
     }
+
+    page.classList.add('is-loading');
 }
 
-function showTenantsTableLoading() {
-    const tbody = document.getElementById('tenants-table-body');
-    if (tbody) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7">
-                    ${getLoadingStateHTML('Loading tenants...')}
-                </td>
-            </tr>
-        `;
+function hidePageLoading(pageId) {
+    const page = document.getElementById(pageId);
+    if (!page) return;
+
+    page.classList.remove('is-loading');
+    const overlay = page.querySelector('.page-loading-overlay');
+    if (overlay) {
+        overlay.setAttribute('aria-busy', 'false');
     }
 }
 
@@ -736,7 +732,7 @@ function showTenantsTableLoading() {
 async function loadTenantsFromAPI() {
     const tenantsPageActive = document.getElementById('tenants')?.classList.contains('active');
     if (tenantsPageActive) {
-        showTenantsTableLoading();
+        showPageLoading('tenants', 'Loading tenants...');
     }
 
     try {
@@ -1256,7 +1252,7 @@ async function updatePageContent(page) {
 
 // Update dashboard
 async function updateDashboard() {
-    showRecentTenantsLoading();
+    showPageLoading('dashboard', 'Loading dashboard...');
 
     try {
         // Get dashboard stats from API
@@ -1333,6 +1329,8 @@ async function updateDashboard() {
                 </div>
             `).join('');
         }
+    } finally {
+        hidePageLoading('dashboard');
     }
 }
 
@@ -1768,12 +1766,14 @@ async function handleTenantSearch(e) {
     const searchTerm = e.target.value;
     
     if (searchTerm.length > 0) {
-        showTenantsTableLoading();
+        showPageLoading('tenants', 'Loading tenants...');
         try {
             const response = await api.searchTenants(searchTerm);
             if (response.success) {
                 tenants = response.data.map(tenant => api.transformTenantData(tenant));
                 renderTenantsTable(tenants);
+            } else {
+                hidePageLoading('tenants');
             }
         } catch (error) {
             console.error('Error searching tenants:', error);
@@ -1794,13 +1794,15 @@ async function handleTenantSearch(e) {
 async function handleStatusFilter(e) {
     const status = e.target.value;
     
-    showTenantsTableLoading();
+    showPageLoading('tenants', 'Loading tenants...');
     try {
         const params = status ? { status } : {};
         const response = await api.getTenants(params);
         if (response.success) {
             tenants = response.data.map(tenant => api.transformTenantData(tenant));
             renderTenantsTable(tenants);
+        } else {
+            hidePageLoading('tenants');
         }
     } catch (error) {
         console.error('Error filtering tenants:', error);
@@ -1822,6 +1824,7 @@ function renderTenantsTable(tenantsToRender = tenants) {
                 </td>
             </tr>
         `;
+        hidePageLoading('tenants');
         return;
     }
     
@@ -1859,6 +1862,7 @@ function renderTenantsTable(tenantsToRender = tenants) {
             </td>
         </tr>
     `).join('');
+    hidePageLoading('tenants');
 }
 
 function renderMaintenanceLists() {

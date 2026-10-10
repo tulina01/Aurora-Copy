@@ -86,7 +86,13 @@
     <!-- Main Content -->
     <main class="main-content">
         <!-- Dashboard Page -->
-        <div id="dashboard" class="page active">
+        <div id="dashboard" class="page active is-loading">
+            <div class="page-loading-overlay" aria-live="polite" aria-busy="true">
+                <div class="loading-state">
+                    <div class="loading-spinner" aria-hidden="true"></div>
+                    <p>Loading dashboard...</p>
+                </div>
+            </div>
             <div class="page-header">
                 <h1>Dashboard</h1>
                 <p>Welcome to Aurora Tenant Management System</p>
@@ -138,10 +144,7 @@
                 <div class="dashboard-card" data-aos="fade-right">
                     <h3>Recent Tenants</h3>
                     <div class="recent-list" id="recent-tenants">
-                        <div class="loading-state">
-                            <div class="loading-spinner" aria-hidden="true"></div>
-                            <p>Loading recent tenants...</p>
-                        </div>
+                        <!-- Recent tenants will be populated here -->
                     </div>
                 </div>
                 
@@ -167,6 +170,12 @@
 
         <!-- Tenants Page -->
         <div id="tenants" class="page">
+            <div class="page-loading-overlay" aria-live="polite" aria-busy="false">
+                <div class="loading-state">
+                    <div class="loading-spinner" aria-hidden="true"></div>
+                    <p>Loading tenants...</p>
+                </div>
+            </div>
             <div class="page-header">
                 <h1>Tenant Management</h1>
                 <button class="btn-primary" id="add-tenant-btn">
@@ -199,14 +208,7 @@
                         </tr>
                     </thead>
                     <tbody id="tenants-table-body">
-                        <tr>
-                            <td colspan="7">
-                                <div class="loading-state">
-                                    <div class="loading-spinner" aria-hidden="true"></div>
-                                    <p>Loading tenants...</p>
-                                </div>
-                            </td>
-                        </tr>
+                        <!-- Tenants data will be populated here -->
                     </tbody>
                 </table>
             </div>

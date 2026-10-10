@@ -199,11 +199,17 @@ body.authenticated #auth-gate {
 
 .page {
     display: none;
+    position: relative;
     animation: fadeIn 0.5s ease;
 }
 
 .page.active {
     display: block;
+}
+
+.page.is-loading > :not(.page-loading-overlay) {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .page-header {
@@ -1181,6 +1187,21 @@ body.authenticated #auth-gate {
     }
 }
 
+.page-loading-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    min-height: calc(100vh - 60px);
+    background: #f8fafc;
+    align-items: center;
+    justify-content: center;
+}
+
+.page.is-loading > .page-loading-overlay {
+    display: flex;
+}
+
 .loading-state {
     display: flex;
     flex-direction: column;
@@ -1199,16 +1220,12 @@ body.authenticated #auth-gate {
 }
 
 .loading-spinner {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border: 3px solid rgba(74, 160, 186, 0.2);
     border-radius: 50%;
     border-top-color: #4AA0BA;
     animation: spin 0.8s linear infinite;
-}
-
-.data-table .loading-state {
-    padding: 60px 20px;
 }
 
 /* Success/Error Messages */
