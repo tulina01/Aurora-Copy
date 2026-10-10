@@ -8,6 +8,7 @@ class APIService {
             maintenance: '/maintenance',
             inventory: '/inventory',
             apartments: '/apartments',
+            signatures: '/signatures',
             health: '/health'
         };
     }
@@ -402,6 +403,78 @@ class APIService {
             method: 'POST',
             body: JSON.stringify({ items })
         });
+    }
+
+    async getSignatures() {
+        return this.request(this.endpoints.signatures);
+    }
+
+    async createSignature(name) {
+        return this.request(this.endpoints.signatures, {
+            method: 'POST',
+            body: JSON.stringify({ name })
+        });
+    }
+
+    async renameSignature(id, name) {
+        return this.request(`${this.endpoints.signatures}/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ name })
+        });
+    }
+
+    async deleteSignature(id) {
+        return this.request(`${this.endpoints.signatures}/${id}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async uploadSignatureImage(id, blob) {
+        const response = await fetch(`${this.baseURL}${this.endpoints.signatures}/${id}/image`, {
+            method: 'PUT',
+            headers: await this.authHeaders({
+                'Content-Type': 'image/png'
+            }),
+            body: blob
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Could not upload the signature image');
+        }
+        return data;
+    }
+
+    async fetchSignatureImage(id) {
+        const response = await fetch(`${this.baseURL}${this.endpoints.signatures}/${id}/image`, {
+            headers: await this.authHeaders()
+        });
+        if (response.status === 404) {
+            return null;
+        }
+        if (!response.ok) {
+            let message = 'Could not load the signature image';
+            try {
+                const data = await response.json();
+                if (data.message) {
+                    message = data.message;
+                }
+            } catch (err) {
+                // The error body is not JSON.
+            }
+            throw new Error(message);
+        }
+        return response.blob();
+    }
+
+    transformSignatureData(signature) {
+        return {
+            id: signature._id,
+            name: signature.name,
+            hasImage: Boolean(signature.image && signature.image.key),
+            uploadedAt: signature.image && signature.image.uploadedAt ? signature.image.uploadedAt : null,
+            createdAt: signature.createdAt,
+            updatedAt: signature.updatedAt
+        };
     }
 
     // Utility methods

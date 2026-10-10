@@ -1751,3 +1751,114 @@ body.authenticated #auth-gate {
     background: rgba(76, 175, 80, 0.1);
     color: #4caf50;
 }
+
+/* Admin signatures */
+.admin-section {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.admin-panel {
+    background: #fff;
+    border: 1px solid #e8eef2;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.admin-panel h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 18px;
+}
+
+.signature-upload-form .form-actions {
+    margin-top: 8px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    justify-content: flex-start;
+}
+
+.signatures-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.signatures-grid > .empty-state {
+    grid-column: 1 / -1;
+}
+
+.signature-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+}
+
+.signature-card-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    background: #fff;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.signature-card-preview img {
+    max-width: 100%;
+    max-height: 140px;
+    object-fit: contain;
+}
+
+.signature-card-preview-empty {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.signature-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.signature-card-header h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #334155;
+    margin: 0;
+    word-break: break-word;
+}
+
+.signature-card-meta {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.signature-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.signature-card-actions .btn-secondary,
+.signature-card-actions .btn-danger {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    min-width: auto;
+}
+
+.signature-replace-input {
+    display: none;
+}

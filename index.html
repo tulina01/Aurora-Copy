@@ -59,6 +59,12 @@
                         Inventory
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="#admin" class="nav-link" data-page="admin">
+                        <i class="fas fa-user-shield"></i>
+                        Admin
+                    </a>
+                </li>
             </ul>
             <div class="nav-user" id="nav-user">
                 <span class="nav-user-email" id="nav-user-email"></span>
@@ -274,6 +280,49 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Admin Page -->
+        <div id="admin" class="page">
+            <div class="page-header">
+                <h1>Admin</h1>
+                <p>Manage company signatures used on invoices and receipts</p>
+            </div>
+
+            <section class="admin-section">
+                <div class="admin-panel">
+                    <h2>New signature</h2>
+                    <form id="add-signature-form" class="signature-upload-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="signature-name">Name *</label>
+                                <input type="text" id="signature-name" maxlength="100" required placeholder="e.g. Property Manager">
+                            </div>
+                            <div class="form-group">
+                                <label for="signature-file">PNG image *</label>
+                                <input type="file" id="signature-file" accept="image/png,.png" required>
+                                <p class="field-hint">PNG only, up to 4 MB. Prefer a transparent background.</p>
+                            </div>
+                        </div>
+                        <div id="signature-file-preview-wrap" class="nic-photo-preview-wrap" hidden>
+                            <img id="signature-file-preview" alt="New signature preview">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-primary" id="add-signature-submit">
+                                <i class="fas fa-save"></i>
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="admin-panel">
+                    <h2>Stored signatures</h2>
+                    <div id="signatures-grid" class="signatures-grid">
+                        <!-- Signature cards -->
+                    </div>
+                </div>
+            </section>
         </div>
     </main>
 

@@ -4,6 +4,9 @@ let tenants = [];
 let maintenanceRequests = [];
 let inventory = [];
 let apartments = [];
+let signatures = [];
+let signaturePreviewObjectUrl = null;
+const signatureCardObjectUrls = new Map();
 
 // DOM elements
 let navLinks, pages, searchInput, statusFilter;
@@ -309,6 +312,25 @@ function setupEventListeners() {
     } else {
         console.error('❌ Apartment form not found!');
     }
+
+    const addSignatureForm = document.getElementById('add-signature-form');
+    if (addSignatureForm) {
+        addSignatureForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            handleAddSignature();
+        });
+        const signatureSaveBtn = document.getElementById('add-signature-submit');
+        if (signatureSaveBtn) {
+            signatureSaveBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                handleAddSignature();
+            });
+        }
+        const signatureFileInput = document.getElementById('signature-file');
+        if (signatureFileInput) {
+            signatureFileInput.addEventListener('change', handleSignatureFilePreview);
+        }
+    }
     
     // Event delegation for apartment action buttons
     document.addEventListener('click', function(e) {
@@ -568,10 +590,40 @@ function setupDynamicEventListeners() {
             const itemId = e.target.closest('.delete-inventory-btn').getAttribute('data-item-id');
             deleteInventory(itemId);
         }
+
+        if (e.target.closest('.rename-signature-btn')) {
+            const signatureId = e.target.closest('.rename-signature-btn').getAttribute('data-signature-id');
+            renameSignature(signatureId);
+        }
+
+        if (e.target.closest('.replace-signature-btn')) {
+            const button = e.target.closest('.replace-signature-btn');
+            const signatureId = button.getAttribute('data-signature-id');
+            const fileInput = document.querySelector(`.signature-replace-input[data-signature-id="${signatureId}"]`);
+            if (fileInput) {
+                fileInput.click();
+            }
+        }
+
+        if (e.target.closest('.delete-signature-btn')) {
+            const signatureId = e.target.closest('.delete-signature-btn').getAttribute('data-signature-id');
+            deleteSignature(signatureId);
+        }
         
         // Add apartment button
         if (e.target.closest('#add-apartment-btn')) {
             showModal('add-apartment-modal');
+        }
+    });
+
+    document.addEventListener('change', function(e) {
+        if (e.target.classList && e.target.classList.contains('signature-replace-input')) {
+            const signatureId = e.target.getAttribute('data-signature-id');
+            const file = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (signatureId && file) {
+                replaceSignatureImage(signatureId, file);
+            }
         }
     });
 }
@@ -672,6 +724,309 @@ async function loadInventoryFromAPI() {
     } catch (error) {
         console.error('❌ Error loading inventory from API:', error);
     }
+}
+
+async function loadSignaturesFromAPI() {
+    try {
+        const response = await api.getSignatures();
+        if (response.success) {
+            signatures = response.data.map(signature => api.transformSignatureData(signature));
+        }
+    } catch (error) {
+        console.error('❌ Error loading signatures from API:', error);
+        showMessage('Could not load signatures: ' + error.message, 'error');
+    }
+}
+
+function clearSignatureCardObjectUrls() {
+    signatureCardObjectUrls.forEach((url) => {
+        URL.revokeObjectURL(url);
+    });
+    signatureCardObjectUrls.clear();
+}
+
+function clearSignatureUploadForm() {
+    const form = document.getElementById('add-signature-form');
+    if (form) {
+        form.reset();
+    }
+    const previewWrap = document.getElementById('signature-file-preview-wrap');
+    const preview = document.getElementById('signature-file-preview');
+    if (previewWrap) {
+        previewWrap.hidden = true;
+    }
+    if (preview) {
+        preview.removeAttribute('src');
+    }
+    if (signaturePreviewObjectUrl) {
+        URL.revokeObjectURL(signaturePreviewObjectUrl);
+        signaturePreviewObjectUrl = null;
+    }
+}
+
+function handleSignatureFilePreview(e) {
+    const file = e.target.files && e.target.files[0];
+    const previewWrap = document.getElementById('signature-file-preview-wrap');
+    const preview = document.getElementById('signature-file-preview');
+    if (!previewWrap || !preview) {
+        return;
+    }
+
+    if (signaturePreviewObjectUrl) {
+        URL.revokeObjectURL(signaturePreviewObjectUrl);
+        signaturePreviewObjectUrl = null;
+    }
+
+    if (!file) {
+        previewWrap.hidden = true;
+        preview.removeAttribute('src');
+        return;
+    }
+
+    if (file.type !== 'image/png' && !/\.png$/i.test(file.name)) {
+        showMessage('Signature must be a PNG image', 'error');
+        e.target.value = '';
+        previewWrap.hidden = true;
+        preview.removeAttribute('src');
+        return;
+    }
+
+    signaturePreviewObjectUrl = URL.createObjectURL(file);
+    preview.src = signaturePreviewObjectUrl;
+    previewWrap.hidden = false;
+}
+
+function isPngFile(file) {
+    return Boolean(file && (file.type === 'image/png' || /\.png$/i.test(file.name)));
+}
+
+function formatSignatureDate(value) {
+    if (!value) {
+        return '';
+    }
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {
+        return '';
+    }
+    return date.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function renderSignaturesGrid() {
+    const grid = document.getElementById('signatures-grid');
+    if (!grid) {
+        return;
+    }
+
+    clearSignatureCardObjectUrls();
+
+    if (!signatures.length) {
+        grid.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-signature"></i>
+                <h3>No signatures yet</h3>
+                <p>Upload a named PNG signature to use on invoices and receipts.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = signatures.map((signature) => {
+        const updatedLabel = formatSignatureDate(signature.uploadedAt || signature.updatedAt);
+        return `
+            <article class="signature-card" data-signature-id="${signature.id}">
+                <div class="signature-card-header">
+                    <div>
+                        <h3>${escapeHtml(signature.name)}</h3>
+                        <p class="signature-card-meta">${updatedLabel ? `Updated ${updatedLabel}` : 'No image uploaded yet'}</p>
+                    </div>
+                </div>
+                <div class="signature-card-preview" data-signature-preview="${signature.id}">
+                    ${signature.hasImage
+                        ? '<span class="signature-card-preview-empty">Loading…</span>'
+                        : '<span class="signature-card-preview-empty">No image on file</span>'}
+                </div>
+                <div class="signature-card-actions">
+                    <button type="button" class="btn-secondary replace-signature-btn" data-signature-id="${signature.id}" title="Replace image">
+                        <i class="fas fa-upload"></i>
+                        Replace
+                    </button>
+                    <button type="button" class="btn-secondary rename-signature-btn" data-signature-id="${signature.id}" title="Rename">
+                        <i class="fas fa-pen"></i>
+                        Rename
+                    </button>
+                    <button type="button" class="btn-secondary delete-signature-btn" data-signature-id="${signature.id}" title="Delete">
+                        <i class="fas fa-trash"></i>
+                        Delete
+                    </button>
+                    <input type="file" class="signature-replace-input" data-signature-id="${signature.id}" accept="image/png,.png">
+                </div>
+            </article>
+        `;
+    }).join('');
+
+    signatures.forEach((signature) => {
+        if (signature.hasImage) {
+            loadSignatureCardPreview(signature.id);
+        }
+    });
+}
+
+async function loadSignatureCardPreview(signatureId) {
+    const preview = document.querySelector(`[data-signature-preview="${signatureId}"]`);
+    if (!preview) {
+        return;
+    }
+
+    try {
+        const blob = await api.fetchSignatureImage(signatureId);
+        if (!blob) {
+            preview.innerHTML = '<span class="signature-card-preview-empty">No image on file</span>';
+            return;
+        }
+        const url = URL.createObjectURL(blob);
+        const existing = signatureCardObjectUrls.get(signatureId);
+        if (existing) {
+            URL.revokeObjectURL(existing);
+        }
+        signatureCardObjectUrls.set(signatureId, url);
+        preview.innerHTML = `<img src="${url}" alt="Signature preview">`;
+    } catch (error) {
+        console.error('Error loading signature preview:', error);
+        preview.innerHTML = '<span class="signature-card-preview-empty">Could not load image</span>';
+    }
+}
+
+async function handleAddSignature() {
+    const nameInput = document.getElementById('signature-name');
+    const fileInput = document.getElementById('signature-file');
+    const saveButton = document.getElementById('add-signature-submit');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+
+    if (!name) {
+        showMessage('Please enter a signature name', 'error');
+        return;
+    }
+    if (!file) {
+        showMessage('Please choose a PNG signature image', 'error');
+        return;
+    }
+    if (!isPngFile(file)) {
+        showMessage('Signature must be a PNG image', 'error');
+        return;
+    }
+
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Save';
+    }
+
+    let createdId = null;
+    try {
+        const created = await api.createSignature(name);
+        if (!created.success || !created.data || !created.data._id) {
+            throw new Error(created.message || 'Could not create signature');
+        }
+        createdId = created.data._id;
+        await api.uploadSignatureImage(createdId, file);
+        clearSignatureUploadForm();
+        await loadSignaturesFromAPI();
+        renderSignaturesGrid();
+        showMessage('Signature added successfully', 'success');
+    } catch (error) {
+        console.error('Error adding signature:', error);
+        if (createdId) {
+            try {
+                await api.deleteSignature(createdId);
+            } catch (cleanupError) {
+                console.error('Could not clean up incomplete signature:', cleanupError);
+            }
+        }
+        showMessage(error.message || 'Could not add signature', 'error');
+    } finally {
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save"></i> Save';
+        }
+    }
+}
+
+async function renameSignature(signatureId) {
+    const signature = signatures.find((item) => item.id === signatureId);
+    if (!signature) {
+        return;
+    }
+
+    const nextName = prompt('Rename signature', signature.name);
+    if (nextName === null) {
+        return;
+    }
+    const name = nextName.trim();
+    if (!name) {
+        showMessage('Signature name is required', 'error');
+        return;
+    }
+    if (name === signature.name) {
+        return;
+    }
+
+    try {
+        await api.renameSignature(signatureId, name);
+        await loadSignaturesFromAPI();
+        renderSignaturesGrid();
+        showMessage('Signature renamed', 'success');
+    } catch (error) {
+        console.error('Error renaming signature:', error);
+        showMessage(error.message || 'Could not rename signature', 'error');
+    }
+}
+
+async function replaceSignatureImage(signatureId, file) {
+    if (!isPngFile(file)) {
+        showMessage('Signature must be a PNG image', 'error');
+        return;
+    }
+
+    try {
+        await api.uploadSignatureImage(signatureId, file);
+        await loadSignaturesFromAPI();
+        renderSignaturesGrid();
+        showMessage('Signature image updated', 'success');
+    } catch (error) {
+        console.error('Error replacing signature image:', error);
+        showMessage(error.message || 'Could not update signature image', 'error');
+    }
+}
+
+async function deleteSignature(signatureId) {
+    const signature = signatures.find((item) => item.id === signatureId);
+    const label = signature ? `"${signature.name}"` : 'this signature';
+    if (!confirm(`Delete ${label}? This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        await api.deleteSignature(signatureId);
+        await loadSignaturesFromAPI();
+        renderSignaturesGrid();
+        showMessage('Signature deleted', 'success');
+    } catch (error) {
+        console.error('Error deleting signature:', error);
+        showMessage(error.message || 'Could not delete signature', 'error');
+    }
+}
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // Sample data for demonstration
@@ -840,6 +1195,10 @@ async function updatePageContent(page) {
         case 'inventory':
             await loadInventoryFromAPI();
             renderInventoryGrids();
+            break;
+        case 'admin':
+            await loadSignaturesFromAPI();
+            renderSignaturesGrid();
             break;
     }
 }
