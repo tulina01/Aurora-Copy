@@ -23,6 +23,11 @@ const apartmentSchema = new mongoose.Schema({
         required: [true, 'Number of bathrooms is required'],
         min: [0.5, 'Must have at least 0.5 bathrooms']
     },
+    monthlyRate: {
+        type: Number,
+        min: [0, 'Monthly rate cannot be negative'],
+        default: null
+    },
     status: {
         type: String,
         required: [true, 'Apartment status is required'],

@@ -78,6 +78,20 @@ const maintenanceSchema = new mongoose.Schema({
         maxlength: [1000, 'Notes cannot exceed 1000 characters'],
         default: ''
     },
+    photo: {
+        key: {
+            type: String,
+            default: ''
+        },
+        contentType: {
+            type: String,
+            default: ''
+        },
+        uploadedAt: {
+            type: Date,
+            default: null
+        }
+    },
     images: [{
         url: {
             type: String,

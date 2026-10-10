@@ -54,13 +54,19 @@ router.get('/:id', async (req, res) => {
 // POST /api/apartments - Create new apartment
 router.post('/', async (req, res) => {
     try {
-        const { number, size, bedrooms, bathrooms, status } = req.body;
+        const { number, size, bedrooms, bathrooms, status, monthlyRate } = req.body;
         
         // Validate required fields
-        if (!number || !size || !bedrooms || !bathrooms) {
+        if (!number || !size || !bedrooms || !bathrooms || monthlyRate === undefined || monthlyRate === null || monthlyRate === '') {
             return res.status(400).json({
                 success: false,
-                message: 'Missing required fields: number, size, bedrooms, bathrooms'
+                message: 'Missing required fields: number, size, bedrooms, bathrooms, monthlyRate'
+            });
+        }
+        if (Number(monthlyRate) < 0 || !Number.isFinite(Number(monthlyRate))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Monthly rate must be zero or greater'
             });
         }
         
@@ -78,6 +84,7 @@ router.post('/', async (req, res) => {
             size,
             bedrooms,
             bathrooms,
+            monthlyRate: Number(monthlyRate),
             status: status || 'available'
         });
         
@@ -101,7 +108,7 @@ router.post('/', async (req, res) => {
 // PUT /api/apartments/:id - Update apartment
 router.put('/:id', async (req, res) => {
     try {
-        const { number, size, bedrooms, bathrooms, status } = req.body;
+        const { number, size, bedrooms, bathrooms, status, monthlyRate } = req.body;
         
         const apartment = await Apartment.findById(req.params.id);
         if (!apartment) {
@@ -128,6 +135,15 @@ router.put('/:id', async (req, res) => {
         if (bedrooms) apartment.bedrooms = bedrooms;
         if (bathrooms) apartment.bathrooms = bathrooms;
         if (status) apartment.status = status;
+        if (monthlyRate !== undefined && monthlyRate !== null && monthlyRate !== '') {
+            if (Number(monthlyRate) < 0 || !Number.isFinite(Number(monthlyRate))) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Monthly rate must be zero or greater'
+                });
+            }
+            apartment.monthlyRate = Number(monthlyRate);
+        }
         
         await apartment.save();
         

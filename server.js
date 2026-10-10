@@ -1,9 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
-require('dotenv').config({ path: './config.env' });
+require('dotenv').config({ path: path.join(__dirname, 'config.env') });
 
 const app = require('./app');
+const { ensureLocalFileStore } = require('./lib/fileStore');
 
 const PORT = process.env.PORT || 3000;
 
@@ -24,6 +25,13 @@ app.get('*', (req, res) => {
     }
     res.sendFile(path.join(__dirname, 'index.html'));
 });
+
+if (!process.env.MONGODB_URI) {
+    console.error('❌ Missing MONGODB_URI.');
+    console.error('   Create config.env in the Aurora-Copy folder and add your MongoDB Atlas connection string:');
+    console.error('   MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/aurora_tenant_db?retryWrites=true&w=majority');
+    process.exit(1);
+}
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI, {
@@ -62,10 +70,19 @@ process.on('SIGINT', async () => {
     }
 });
 
-// Start server
-app.listen(PORT, () => {
-    console.log('🚀 Aurora Tenant Management Server is running');
-    console.log(`📍 Server URL: http://localhost:${PORT}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-    console.log(`📅 Started at: ${new Date().toISOString()}`);
-});
+async function startServer() {
+    try {
+        await ensureLocalFileStore();
+    } catch (error) {
+        console.error('❌ File store failed to start:', error.message);
+    }
+
+    app.listen(PORT, () => {
+        console.log('🚀 Aurora Tenant Management Server is running');
+        console.log(`📍 Server URL: http://localhost:${PORT}`);
+        console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+        console.log(`📅 Started at: ${new Date().toISOString()}`);
+    });
+}
+
+startServer();

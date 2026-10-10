@@ -123,7 +123,7 @@
                     </div>
                     <div class="stat-content">
                         <h3 id="monthly-revenue">Rs. 0.00</h3>
-                        <p>Monthly Revenue</p>
+                        <p>Total Revenue</p>
                     </div>
                 </div>
             </div>
@@ -309,6 +309,38 @@
                         <input type="text" id="tenant-apartment-number" required>
                     </div>
                 </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tenant-occupation">Occupation</label>
+                        <input type="text" id="tenant-occupation" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="tenant-nic-number">NIC Number</label>
+                        <input type="text" id="tenant-nic-number" maxlength="20">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="tenant-address">Address</label>
+                    <textarea id="tenant-address" rows="2" maxlength="300"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="emergency-contact-name">Emergency Contact Name</label>
+                        <input type="text" id="emergency-contact-name" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="emergency-contact-phone">Emergency Contact Phone</label>
+                        <input type="tel" id="emergency-contact-phone" maxlength="20">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="emergency-contact-relationship">Emergency Contact Relationship</label>
+                    <input type="text" id="emergency-contact-relationship" maxlength="50">
+                </div>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -345,11 +377,25 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label for="rent-amount">Rent Amount *</label>
-                        <input type="number" id="rent-amount" step="0.01" required>
+                        <input type="number" id="rent-amount" min="0" step="0.01" required>
+                        <p class="field-hint">The apartment rate for one month or one day, depending on the rental basis.</p>
                     </div>
                     <div class="form-group">
                         <label for="deposit">Deposit Amount</label>
-                        <input type="number" id="deposit" step="0.01">
+                        <input type="number" id="deposit" min="0" step="0.01">
+                        <p class="field-hint">Held against damages and returned when the tenant leaves.</p>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="amount-paid">Amount Paid</label>
+                        <input type="number" id="amount-paid" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="amount-due">Amount to Be Paid</label>
+                        <input type="text" id="amount-due" class="calculated-field" readonly>
+                        <p class="field-hint" id="amount-due-hint">The first month is due at check-in. Another month of rent is added on each monthly anniversary.</p>
                     </div>
                 </div>
                 
@@ -378,6 +424,16 @@
                 <div class="form-group">
                     <label for="remarks">Other Remarks</label>
                     <textarea id="remarks" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="tenant-nic-photo">NIC Photograph</label>
+                    <input type="file" id="tenant-nic-photo" accept="image/jpeg,image/png,image/webp">
+                    <p class="field-hint">Optional. JPEG, PNG, or WebP. The photo is stored privately and is only visible after login.</p>
+                    <div id="nic-photo-preview-wrap" class="nic-photo-preview-wrap" hidden>
+                        <img id="nic-photo-preview" alt="NIC photograph preview">
+                        <button type="button" id="nic-photo-remove-btn" class="btn-secondary nic-photo-remove">Remove photo</button>
+                    </div>
                 </div>
                 
                 <div class="form-actions">
@@ -421,6 +477,12 @@
                     </div>
                 </div>
                 
+                <div class="form-group">
+                    <label for="apartment-monthly-rate">Standard Monthly Rate *</label>
+                    <input type="number" id="apartment-monthly-rate" min="0" step="0.01" required>
+                    <p class="field-hint">The standard rent for this apartment per month.</p>
+                </div>
+
                 <div class="form-group">
                     <label for="apartment-status">Status</label>
                     <select id="apartment-status">
@@ -468,6 +530,10 @@
                         <div class="detail-item">
                             <label>Bathrooms:</label>
                             <span id="detail-apartment-bathrooms">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Monthly Rate:</label>
+                            <span id="detail-apartment-monthly-rate">-</span>
                         </div>
                         <div class="detail-item">
                             <label>Status:</label>
@@ -528,6 +594,34 @@
                             <label>Email:</label>
                             <span id="detail-email">-</span>
                         </div>
+                        <div class="detail-item">
+                            <label>Occupation:</label>
+                            <span id="detail-occupation">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Address:</label>
+                            <span id="detail-address">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>NIC Number:</label>
+                            <span id="detail-nic-number">-</span>
+                        </div>
+                    </div>
+
+                    <div class="detail-section">
+                        <h3><i class="fas fa-phone-alt"></i> Emergency Contact</h3>
+                        <div class="detail-item">
+                            <label>Name:</label>
+                            <span id="detail-emergency-name">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Phone Number:</label>
+                            <span id="detail-emergency-phone">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Relationship:</label>
+                            <span id="detail-emergency-relationship">-</span>
+                        </div>
                     </div>
                     
                     <div class="detail-section">
@@ -565,6 +659,18 @@
                             <span id="detail-deposit">-</span>
                         </div>
                         <div class="detail-item">
+                            <label>Amount Paid:</label>
+                            <span id="detail-amount-paid">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Rent Charged:</label>
+                            <span id="detail-rent-periods">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Amount to Be Paid:</label>
+                            <span id="detail-amount-due">-</span>
+                        </div>
+                        <div class="detail-item">
                             <label>Booking Source:</label>
                             <span id="detail-booking-source">-</span>
                         </div>
@@ -585,6 +691,12 @@
                             <span id="detail-remarks">-</span>
                         </div>
                     </div>
+
+                    <div class="detail-section full-width">
+                        <h3><i class="fas fa-id-card"></i> NIC Photograph</h3>
+                        <img id="detail-nic-photo" class="nic-photo" alt="NIC photograph" hidden>
+                        <p id="detail-nic-empty" class="no-data">No NIC photograph on file</p>
+                    </div>
                 </div>
                 
                 <div class="modal-actions">
@@ -592,6 +704,130 @@
                     <button type="button" class="btn-primary" id="edit-from-details-btn">
                         <i class="fas fa-edit"></i>
                         Edit Tenant
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Details Modal -->
+    <div id="inventory-details-modal" class="modal">
+        <div class="modal-content tenant-details-modal">
+            <div class="modal-header">
+                <h2>Inventory Item</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="tenant-details-content">
+                <div class="tenant-details-grid">
+                    <div class="detail-section">
+                        <h3><i class="fas fa-box"></i> Item</h3>
+                        <div class="detail-item">
+                            <label>Item Type:</label>
+                            <span id="detail-inventory-type">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Category:</label>
+                            <span id="detail-inventory-category">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Count:</label>
+                            <span id="detail-inventory-count">-</span>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h3><i class="fas fa-home"></i> Location</h3>
+                        <div class="detail-item">
+                            <label>Apartment Number:</label>
+                            <span id="detail-inventory-apartment">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Cost:</label>
+                            <span id="detail-inventory-cost">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Notes:</label>
+                            <span id="detail-inventory-notes">-</span>
+                        </div>
+                    </div>
+                    <div class="detail-section full-width">
+                        <h3><i class="fas fa-image"></i> Photograph</h3>
+                        <img id="detail-inventory-photo" class="nic-photo" alt="Inventory photograph" hidden>
+                        <p id="detail-inventory-photo-empty" class="no-data">No photograph on file</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" data-modal="inventory-details-modal">Close</button>
+                    <button type="button" class="btn-primary" id="edit-inventory-from-details-btn">
+                        <i class="fas fa-edit"></i>
+                        Edit Item
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance Details Modal -->
+    <div id="maintenance-details-modal" class="modal">
+        <div class="modal-content tenant-details-modal">
+            <div class="modal-header">
+                <h2>Maintenance Request</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="tenant-details-content">
+                <div class="tenant-details-grid">
+                    <div class="detail-section">
+                        <h3><i class="fas fa-tools"></i> Request</h3>
+                        <div class="detail-item">
+                            <label>Issue Type:</label>
+                            <span id="detail-maintenance-type">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Apartment Number:</label>
+                            <span id="detail-maintenance-apartment">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Priority:</label>
+                            <span id="detail-maintenance-priority">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Status:</label>
+                            <span id="detail-maintenance-status">-</span>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h3><i class="fas fa-receipt"></i> Details</h3>
+                        <div class="detail-item">
+                            <label>Cost:</label>
+                            <span id="detail-maintenance-cost">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Report Date:</label>
+                            <span id="detail-maintenance-reported">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Completed Date:</label>
+                            <span id="detail-maintenance-completed">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <label>Description:</label>
+                            <span id="detail-maintenance-description">-</span>
+                        </div>
+                    </div>
+                    <div class="detail-section full-width">
+                        <h3><i class="fas fa-image"></i> Photograph</h3>
+                        <img id="detail-maintenance-photo" class="nic-photo" alt="Maintenance photograph" hidden>
+                        <p id="detail-maintenance-photo-empty" class="no-data">No photograph on file</p>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" data-modal="maintenance-details-modal">Close</button>
+                    <button type="button" class="btn-primary" id="edit-maintenance-from-details-btn">
+                        <i class="fas fa-edit"></i>
+                        Edit Request
                     </button>
                 </div>
             </div>
@@ -646,6 +882,21 @@
                         <input type="date" id="maintenance-date">
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label for="maintenance-cost">Cost</label>
+                    <input type="number" id="maintenance-cost" min="0" step="0.01" placeholder="0.00">
+                </div>
+
+                <div class="form-group">
+                    <label for="maintenance-photo">Photograph</label>
+                    <input type="file" id="maintenance-photo" accept="image/jpeg,image/png,image/webp">
+                    <p class="field-hint">Optional. JPEG, PNG, or WebP. The photo is stored privately and is only visible after login.</p>
+                    <div id="maintenance-photo-preview-wrap" class="nic-photo-preview-wrap" hidden>
+                        <img id="maintenance-photo-preview" alt="Maintenance photograph preview">
+                        <button type="button" id="maintenance-photo-remove-btn" class="btn-secondary nic-photo-remove">Remove photo</button>
+                    </div>
+                </div>
                 
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" data-modal="maintenance-modal">Cancel</button>
@@ -691,10 +942,25 @@
                         <input type="number" id="item-count" min="1" required>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label for="item-cost">Cost</label>
+                    <input type="number" id="item-cost" min="0" step="0.01" placeholder="0.00">
+                </div>
                 
                 <div class="form-group">
                     <label for="item-notes">Notes</label>
                     <textarea id="item-notes" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="inventory-photo">Photograph</label>
+                    <input type="file" id="inventory-photo" accept="image/jpeg,image/png,image/webp">
+                    <p class="field-hint">Optional. JPEG, PNG, or WebP. The photo is stored privately and is only visible after login.</p>
+                    <div id="inventory-photo-preview-wrap" class="nic-photo-preview-wrap" hidden>
+                        <img id="inventory-photo-preview" alt="Inventory photograph preview">
+                        <button type="button" id="inventory-photo-remove-btn" class="btn-secondary nic-photo-remove">Remove photo</button>
+                    </div>
                 </div>
                 
                 <div class="form-actions">
@@ -709,6 +975,7 @@
 
     <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
     <script src="js/auth.js"></script>
+    <script src="lib/tenantBilling.js"></script>
     <script src="js/api.js"></script>
     <script src="js/main.js"></script>
     <script src="js/animations.js"></script>

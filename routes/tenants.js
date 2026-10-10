@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Tenant = require('../models/Tenant');
+const { getFileStore, tenantNicKey } = require('../lib/fileStore');
+const { detectImageType } = require('../lib/imageBytes');
 
 // Get all tenants with pagination and filtering
 router.get('/', async (req, res) => {
@@ -98,6 +100,8 @@ router.post('/', async (req, res) => {
         console.log('📋 Request body:', req.body);
         
         const tenantData = req.body;
+        // The photograph is stored separately. Ignore any key sent with the form.
+        delete tenantData.nicPhoto;
         
         // Set current rental period if not provided
         if (!tenantData.currentRentalPeriod) {
@@ -141,6 +145,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
     try {
         const tenantData = req.body;
+        delete tenantData.nicPhoto;
         
         // Set current rental period if not provided
         if (!tenantData.currentRentalPeriod) {
@@ -191,7 +196,7 @@ router.put('/:id', async (req, res) => {
 // Delete tenant
 router.delete('/:id', async (req, res) => {
     try {
-        const tenant = await Tenant.findByIdAndDelete(req.params.id);
+        const tenant = await Tenant.findById(req.params.id);
 
         if (!tenant) {
             return res.status(404).json({
@@ -199,6 +204,16 @@ router.delete('/:id', async (req, res) => {
                 message: 'Tenant not found'
             });
         }
+
+        if (tenant.nicPhoto && tenant.nicPhoto.key) {
+            try {
+                await getFileStore().delete(tenantNicKey(tenant._id.toString()));
+            } catch (error) {
+                return sendNicStorageError(res, error);
+            }
+        }
+
+        await tenant.deleteOne();
 
         res.json({
             success: true,
@@ -338,6 +353,183 @@ router.patch('/update-statuses', async (req, res) => {
             message: 'Error updating tenant statuses',
             error: error.message
         });
+    }
+});
+
+function isTenantId(id) {
+    return /^[a-f\d]{24}$/i.test(id);
+}
+
+function sendNicStorageError(res, error) {
+    console.error('NIC photograph storage error:', error);
+    const unavailable = error.statusCode === 503 || error.name === 'MissingBlobsEnvironmentError';
+    return res.status(unavailable ? 503 : 500).json({
+        success: false,
+        message: unavailable
+            ? 'Photo storage is not available right now'
+            : 'Could not access the NIC photograph'
+    });
+}
+
+function readNicImage(req, res, next) {
+    const contentType = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+        return res.status(400).json({
+            success: false,
+            message: 'NIC photograph must be a JPEG, PNG, or WebP image'
+        });
+    }
+
+    return express.raw({ type: () => true, limit: '4mb' })(req, res, (error) => {
+        if (!error) {
+            return next();
+        }
+        if (error.type === 'entity.too.large' || error.status === 413) {
+            return res.status(413).json({
+                success: false,
+                message: 'NIC photograph must be under 4 MB'
+            });
+        }
+        return next(error);
+    });
+}
+
+router.put('/:id/nic-photo', readNicImage, async (req, res) => {
+    try {
+        const tenantId = req.params.id;
+        if (!isTenantId(tenantId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid tenant id'
+            });
+        }
+
+        const buffer = req.body;
+        if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'NIC photograph file is empty'
+            });
+        }
+
+        const detected = detectImageType(buffer);
+        if (!detected) {
+            return res.status(400).json({
+                success: false,
+                message: 'NIC photograph must be a JPEG, PNG, or WebP image'
+            });
+        }
+
+        const tenant = await Tenant.findById(tenantId);
+        if (!tenant) {
+            return res.status(404).json({
+                success: false,
+                message: 'Tenant not found'
+            });
+        }
+
+        const key = tenantNicKey(tenantId);
+        const bytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+        await getFileStore().set(key, bytes, {
+            metadata: { contentType: detected, kind: 'nic' }
+        });
+
+        const uploadedAt = new Date();
+        await Tenant.findByIdAndUpdate(tenantId, {
+            $set: {
+                'nicPhoto.key': key,
+                'nicPhoto.contentType': detected,
+                'nicPhoto.uploadedAt': uploadedAt
+            }
+        });
+
+        res.json({
+            success: true,
+            message: 'NIC photograph saved',
+            data: { uploadedAt }
+        });
+    } catch (error) {
+        return sendNicStorageError(res, error);
+    }
+});
+
+router.get('/:id/nic-photo', async (req, res) => {
+    try {
+        const tenantId = req.params.id;
+        if (!isTenantId(tenantId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid tenant id'
+            });
+        }
+
+        const tenant = await Tenant.findById(tenantId).select('nicPhoto');
+        if (!tenant) {
+            return res.status(404).json({
+                success: false,
+                message: 'Tenant not found'
+            });
+        }
+        if (!tenant.nicPhoto || !tenant.nicPhoto.key) {
+            return res.status(404).json({
+                success: false,
+                message: 'No NIC photograph on file'
+            });
+        }
+
+        const result = await getFileStore().getWithMetadata(tenantNicKey(tenantId), { type: 'arrayBuffer' });
+        if (!result || !result.data) {
+            return res.status(404).json({
+                success: false,
+                message: 'No NIC photograph on file'
+            });
+        }
+
+        const contentType = (result.metadata && result.metadata.contentType) || tenant.nicPhoto.contentType || 'application/octet-stream';
+        res.set('Content-Type', contentType);
+        res.set('Cache-Control', 'private, no-store');
+        res.set('Content-Disposition', 'inline; filename="nic-photograph"');
+        res.send(Buffer.from(result.data));
+    } catch (error) {
+        return sendNicStorageError(res, error);
+    }
+});
+
+router.delete('/:id/nic-photo', async (req, res) => {
+    try {
+        const tenantId = req.params.id;
+        if (!isTenantId(tenantId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid tenant id'
+            });
+        }
+
+        const tenant = await Tenant.findById(tenantId);
+        if (!tenant) {
+            return res.status(404).json({
+                success: false,
+                message: 'Tenant not found'
+            });
+        }
+
+        if (tenant.nicPhoto && tenant.nicPhoto.key) {
+            await getFileStore().delete(tenantNicKey(tenantId));
+            await Tenant.findByIdAndUpdate(tenantId, {
+                $set: {
+                    'nicPhoto.key': '',
+                    'nicPhoto.contentType': '',
+                    'nicPhoto.uploadedAt': null
+                }
+            });
+        }
+
+        res.json({
+            success: true,
+            message: 'NIC photograph removed'
+        });
+    } catch (error) {
+        return sendNicStorageError(res, error);
     }
 });
 

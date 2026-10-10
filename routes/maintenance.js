@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Maintenance = require('../models/Maintenance');
+const { maintenancePhotoKey } = require('../lib/fileStore');
+const { attachPhotoRoutes, deleteRecordPhoto, sendPhotoError } = require('../lib/recordPhoto');
 
 // Get all maintenance requests with pagination and filtering
 router.get('/', async (req, res) => {
@@ -92,6 +94,7 @@ router.post('/', async (req, res) => {
         console.log('📋 Request body:', req.body);
         
         const maintenanceData = req.body;
+        delete maintenanceData.photo;
         const maintenance = new Maintenance(maintenanceData);
         console.log('💾 Saving maintenance request to database...');
         await maintenance.save();
@@ -125,9 +128,11 @@ router.post('/', async (req, res) => {
 // Update maintenance request
 router.put('/:id', async (req, res) => {
     try {
+        const maintenanceData = req.body;
+        delete maintenanceData.photo;
         const maintenance = await Maintenance.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            maintenanceData,
             { new: true, runValidators: true }
         );
 
@@ -166,7 +171,7 @@ router.put('/:id', async (req, res) => {
 // Delete maintenance request
 router.delete('/:id', async (req, res) => {
     try {
-        const maintenance = await Maintenance.findByIdAndDelete(req.params.id);
+        const maintenance = await Maintenance.findById(req.params.id);
 
         if (!maintenance) {
             return res.status(404).json({
@@ -174,6 +179,14 @@ router.delete('/:id', async (req, res) => {
                 message: 'Maintenance request not found'
             });
         }
+
+        try {
+            await deleteRecordPhoto(maintenance, maintenancePhotoKey);
+        } catch (error) {
+            return sendPhotoError(res, error);
+        }
+
+        await maintenance.deleteOne();
 
         res.json({
             success: true,
@@ -374,6 +387,12 @@ router.get('/priority/urgent', async (req, res) => {
             error: error.message
         });
     }
+});
+
+attachPhotoRoutes(router, {
+    Model: Maintenance,
+    keyFor: maintenancePhotoKey,
+    kind: 'maintenance'
 });
 
 module.exports = router;

@@ -12,25 +12,29 @@ class APIService {
         };
     }
 
-    // Generic request method
-    async request(endpoint, options = {}) {
-        const url = `${this.baseURL}${endpoint}`;
-
-        const authHeaders = {};
+    async authHeaders(extra = {}) {
+        const headers = { ...extra };
         if (window.auth && typeof window.auth.getToken === 'function') {
             const token = await window.auth.getToken();
             if (token) {
-                authHeaders['Authorization'] = `Bearer ${token}`;
+                headers.Authorization = `Bearer ${token}`;
             }
         }
+        return headers;
+    }
+
+    // Generic request method
+    async request(endpoint, options = {}) {
+        const url = `${this.baseURL}${endpoint}`;
+        const { headers: extraHeaders, ...rest } = options;
 
         const config = {
+            ...rest,
             headers: {
                 'Content-Type': 'application/json',
-                ...authHeaders,
-                ...options.headers
-            },
-            ...options
+                ...(await this.authHeaders()),
+                ...extraHeaders
+            }
         };
 
         try {
@@ -80,6 +84,102 @@ class APIService {
 
     async deleteTenant(id) {
         return this.request(`${this.endpoints.tenants}/${id}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async uploadNicPhoto(id, blob) {
+        const response = await fetch(`${this.baseURL}${this.endpoints.tenants}/${id}/nic-photo`, {
+            method: 'PUT',
+            headers: await this.authHeaders({
+                'Content-Type': blob.type || 'image/jpeg'
+            }),
+            body: blob
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Could not upload the NIC photograph');
+        }
+        return data;
+    }
+
+    async fetchNicPhoto(id) {
+        const response = await fetch(`${this.baseURL}${this.endpoints.tenants}/${id}/nic-photo`, {
+            headers: await this.authHeaders()
+        });
+        if (response.status === 404) {
+            return null;
+        }
+        if (!response.ok) {
+            let message = 'Could not load the NIC photograph';
+            try {
+                const data = await response.json();
+                if (data.message) {
+                    message = data.message;
+                }
+            } catch (err) {
+                // The error body is not JSON.
+            }
+            throw new Error(message);
+        }
+        return response.blob();
+    }
+
+    async deleteNicPhoto(id) {
+        return this.request(`${this.endpoints.tenants}/${id}/nic-photo`, {
+            method: 'DELETE'
+        });
+    }
+
+    recordPhotoPath(kind) {
+        if (kind === 'maintenance') {
+            return this.endpoints.maintenance;
+        }
+        if (kind === 'inventory') {
+            return this.endpoints.inventory;
+        }
+        throw new Error('Unknown photograph type');
+    }
+
+    async uploadRecordPhoto(kind, id, blob) {
+        const response = await fetch(`${this.baseURL}${this.recordPhotoPath(kind)}/${id}/photo`, {
+            method: 'PUT',
+            headers: await this.authHeaders({
+                'Content-Type': blob.type || 'image/jpeg'
+            }),
+            body: blob
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.message || 'Could not upload the photograph');
+        }
+        return data;
+    }
+
+    async fetchRecordPhoto(kind, id) {
+        const response = await fetch(`${this.baseURL}${this.recordPhotoPath(kind)}/${id}/photo`, {
+            headers: await this.authHeaders()
+        });
+        if (response.status === 404) {
+            return null;
+        }
+        if (!response.ok) {
+            let message = 'Could not load the photograph';
+            try {
+                const data = await response.json();
+                if (data.message) {
+                    message = data.message;
+                }
+            } catch (err) {
+                // The error body is not JSON.
+            }
+            throw new Error(message);
+        }
+        return response.blob();
+    }
+
+    async deleteRecordPhoto(kind, id) {
+        return this.request(`${this.recordPhotoPath(kind)}/${id}/photo`, {
             method: 'DELETE'
         });
     }
@@ -341,6 +441,14 @@ class APIService {
             name: tenant.name,
             phone: tenant.phone,
             email: tenant.email,
+            occupation: tenant.occupation || '',
+            address: tenant.address || '',
+            nicNumber: tenant.nicNumber || '',
+            emergencyContact: {
+                name: tenant.emergencyContact && tenant.emergencyContact.name || '',
+                phone: tenant.emergencyContact && tenant.emergencyContact.phone || '',
+                relationship: tenant.emergencyContact && tenant.emergencyContact.relationship || ''
+            },
             apartmentNumber: tenant.apartmentNumber,
             checkinDate: tenant.checkinDate,
             checkoutDate: tenant.checkoutDate,
@@ -348,10 +456,12 @@ class APIService {
             currency: tenant.currency || 'USD', // Default to USD if not set
             rentAmount: tenant.rentAmount,
             deposit: tenant.deposit,
+            amountPaid: tenant.amountPaid || 0,
             bookingSource: tenant.bookingSource,
             specialRequests: tenant.specialRequests,
             remarks: tenant.remarks,
             status: tenant.status,
+            hasNicPhoto: Boolean(tenant.nicPhoto && tenant.nicPhoto.key),
             createdAt: tenant.createdAt,
             updatedAt: tenant.updatedAt
         };
@@ -370,6 +480,7 @@ class APIService {
             assignedTo: maintenance.assignedTo,
             estimatedCost: maintenance.estimatedCost,
             actualCost: maintenance.actualCost,
+            hasPhoto: Boolean(maintenance.photo && maintenance.photo.key),
             createdAt: maintenance.createdAt,
             updatedAt: maintenance.updatedAt
         };
@@ -391,6 +502,7 @@ class APIService {
             location: inventory.location,
             notes: inventory.notes,
             status: inventory.status,
+            hasPhoto: Boolean(inventory.photo && inventory.photo.key),
             createdAt: inventory.createdAt,
             updatedAt: inventory.updatedAt
         };

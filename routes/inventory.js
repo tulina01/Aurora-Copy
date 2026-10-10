@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Inventory = require('../models/Inventory');
+const { inventoryPhotoKey } = require('../lib/fileStore');
+const { attachPhotoRoutes, deleteRecordPhoto, sendPhotoError } = require('../lib/recordPhoto');
 
 // Get all inventory items with pagination and filtering
 router.get('/', async (req, res) => {
@@ -92,6 +94,7 @@ router.post('/', async (req, res) => {
         console.log('📋 Request body:', req.body);
         
         const inventoryData = req.body;
+        delete inventoryData.photo;
         const inventory = new Inventory(inventoryData);
         console.log('💾 Saving inventory item to database...');
         await inventory.save();
@@ -125,9 +128,11 @@ router.post('/', async (req, res) => {
 // Update inventory item
 router.put('/:id', async (req, res) => {
     try {
+        const inventoryData = req.body;
+        delete inventoryData.photo;
         const inventory = await Inventory.findByIdAndUpdate(
             req.params.id,
-            req.body,
+            inventoryData,
             { new: true, runValidators: true }
         );
 
@@ -166,7 +171,7 @@ router.put('/:id', async (req, res) => {
 // Delete inventory item
 router.delete('/:id', async (req, res) => {
     try {
-        const inventory = await Inventory.findByIdAndDelete(req.params.id);
+        const inventory = await Inventory.findById(req.params.id);
 
         if (!inventory) {
             return res.status(404).json({
@@ -174,6 +179,14 @@ router.delete('/:id', async (req, res) => {
                 message: 'Inventory item not found'
             });
         }
+
+        try {
+            await deleteRecordPhoto(inventory, inventoryPhotoKey);
+        } catch (error) {
+            return sendPhotoError(res, error);
+        }
+
+        await inventory.deleteOne();
 
         res.json({
             success: true,
@@ -451,6 +464,12 @@ router.post('/bulk-update', async (req, res) => {
             error: error.message
         });
     }
+});
+
+attachPhotoRoutes(router, {
+    Model: Inventory,
+    keyFor: inventoryPhotoKey,
+    kind: 'inventory'
 });
 
 module.exports = router;

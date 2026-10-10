@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { calculateTenantAmountDue } = require('../lib/tenantBilling');
 
 const tenantSchema = new mongoose.Schema({
     name: {
@@ -19,6 +20,44 @@ const tenantSchema = new mongoose.Schema({
         lowercase: true,
         maxlength: [100, 'Email cannot exceed 100 characters'],
         match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    },
+    occupation: {
+        type: String,
+        trim: true,
+        maxlength: [100, 'Occupation cannot exceed 100 characters'],
+        default: ''
+    },
+    address: {
+        type: String,
+        trim: true,
+        maxlength: [300, 'Address cannot exceed 300 characters'],
+        default: ''
+    },
+    nicNumber: {
+        type: String,
+        trim: true,
+        maxlength: [20, 'NIC number cannot exceed 20 characters'],
+        default: ''
+    },
+    emergencyContact: {
+        name: {
+            type: String,
+            trim: true,
+            maxlength: [100, 'Emergency contact name cannot exceed 100 characters'],
+            default: ''
+        },
+        phone: {
+            type: String,
+            trim: true,
+            maxlength: [20, 'Emergency contact phone cannot exceed 20 characters'],
+            default: ''
+        },
+        relationship: {
+            type: String,
+            trim: true,
+            maxlength: [50, 'Relationship cannot exceed 50 characters'],
+            default: ''
+        }
     },
     apartmentNumber: {
         type: String,
@@ -56,6 +95,11 @@ const tenantSchema = new mongoose.Schema({
         default: 0,
         min: [0, 'Deposit cannot be negative']
     },
+    amountPaid: {
+        type: Number,
+        default: 0,
+        min: [0, 'Amount paid cannot be negative']
+    },
     bookingSource: {
         type: String,
         enum: ['online', 'in-person', 'call', 'travel-agent', 'other', ''],
@@ -80,6 +124,20 @@ const tenantSchema = new mongoose.Schema({
         type: String,
         enum: ['verified', 'pending', 'not-verified'],
         default: 'pending'
+    },
+    nicPhoto: {
+        key: {
+            type: String,
+            default: ''
+        },
+        contentType: {
+            type: String,
+            default: ''
+        },
+        uploadedAt: {
+            type: Date,
+            default: null
+        }
     },
     currentRentalPeriod: {
         startDate: {
@@ -108,6 +166,10 @@ tenantSchema.virtual('rentalDuration').get(function() {
     const diffTime = Math.abs(endDate - this.checkinDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
+});
+
+tenantSchema.virtual('amountDue').get(function() {
+    return calculateTenantAmountDue(this);
 });
 
 // Virtual for calculating total rent
@@ -142,7 +204,7 @@ tenantSchema.statics.getDashboardStats = async function() {
                 _id: null,
                 totalTenants: { $sum: 1 },
                 activeTenants: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
-                totalRevenue: { $sum: '$totalRent' },
+                totalRevenue: { $sum: '$amountPaid' },
                 averageRent: { $avg: '$rentAmount' }
             }
         }

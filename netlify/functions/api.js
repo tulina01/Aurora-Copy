@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 require('dotenv').config();
 
 const app = require('../../app');
+const { connectNetlifyBlobs } = require('../../lib/fileStore');
 
 let isConnected = false;
 
@@ -20,6 +21,7 @@ async function connectToDatabase() {
 // Attach the Lambda context (which carries Netlify Identity's decoded user
 // under context.clientContext.user) onto req.context for middleware/requireIdentity.js
 const handleRequest = serverless(app, {
+    binary: ['image/*'],
     request(request, event, context) {
         request.context = context;
     }
@@ -29,6 +31,10 @@ module.exports.handler = async (event, context) => {
     // Let a warm container reuse its MongoDB connection across invocations
     // instead of waiting for the connection pool to drain on every call.
     context.callbackWaitsForEmptyEventLoop = false;
+
+    if (event && event.blobs) {
+        connectNetlifyBlobs(event);
+    }
 
     await connectToDatabase();
 

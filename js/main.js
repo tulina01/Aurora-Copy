@@ -148,6 +148,32 @@ function setupEventListeners() {
         } else {
             console.error('❌ Submit button not found!');
         }
+
+        freshForm.addEventListener('change', function(e) {
+            if (e.target.id !== 'tenant-nic-photo') {
+                return;
+            }
+            const file = e.target.files && e.target.files[0];
+            freshForm.removeAttribute('data-remove-nic');
+            if (!file) {
+                return;
+            }
+            const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+            if (!allowed.includes(file.type)) {
+                e.target.value = '';
+                showFieldError(e.target, 'NIC photograph must be a JPEG, PNG, or WebP image');
+                return;
+            }
+            showNicPreview(file);
+        });
+
+        freshForm.addEventListener('click', function(e) {
+            if (!e.target.closest('#nic-photo-remove-btn')) {
+                return;
+            }
+            e.preventDefault();
+            handleRemoveNicPhoto();
+        });
     } else {
         console.error('❌ Add tenant form not found!');
         console.log('🔍 Available forms:', document.querySelectorAll('form').length);
@@ -196,6 +222,7 @@ function setupEventListeners() {
         } else {
             console.error('❌ Maintenance submit button not found!');
         }
+        bindRecordPhotoField(freshMaintenanceForm, 'maintenance');
     } else {
         console.error('❌ Maintenance form not found!');
     }
@@ -240,6 +267,7 @@ function setupEventListeners() {
         } else {
             console.error('❌ Inventory submit button not found!');
         }
+        bindRecordPhotoField(freshInventoryForm, 'inventory');
     } else {
         console.error('❌ Inventory form not found!');
     }
@@ -336,6 +364,9 @@ function setupEventListeners() {
             
             modalTitle.textContent = 'Add New Tenant';
             submitButton.textContent = 'Add Tenant';
+            resetNicPhotoField();
+            updateRentAmountLabel();
+            updateAmountDue();
             
             showModal('add-tenant-modal');
         });
@@ -362,6 +393,9 @@ function setupEventListeners() {
             
             modalTitle.textContent = 'Add New Tenant';
             submitButton.textContent = 'Add Tenant';
+            resetNicPhotoField();
+            updateRentAmountLabel();
+            updateAmountDue();
             
             showModal('add-tenant-modal');
         });
@@ -377,6 +411,20 @@ function setupEventListeners() {
         dashboardInventoryBtn.addEventListener('click', () => showModal('inventory-modal'));
     }
     
+    ['rent-amount', 'deposit', 'amount-paid', 'currency', 'checkin-date', 'checkout-date'].forEach(id => {
+        const field = document.getElementById(id);
+        if (field) {
+            field.addEventListener('input', updateAmountDue);
+        }
+    });
+    const rentalBasisField = document.getElementById('rental-basis');
+    if (rentalBasisField) {
+        rentalBasisField.addEventListener('change', () => {
+            updateRentAmountLabel();
+            updateAmountDue();
+        });
+    }
+
     // Inventory tab functionality
     document.querySelectorAll('.tab-btn').forEach(tab => {
         tab.addEventListener('click', function() {
@@ -475,6 +523,17 @@ function setupDynamicEventListeners() {
             editTenant(tenantId);
         }
         
+        if (e.target.closest('.info-maintenance-btn')) {
+            const requestId = e.target.closest('.info-maintenance-btn').getAttribute('data-request-id');
+            showMaintenanceDetails(requestId);
+        }
+
+        if (e.target.closest('#edit-maintenance-from-details-btn')) {
+            const requestId = document.getElementById('edit-maintenance-from-details-btn').getAttribute('data-request-id');
+            closeModal('maintenance-details-modal');
+            editMaintenance(requestId);
+        }
+
         // Edit maintenance button
         if (e.target.closest('.edit-maintenance-btn')) {
             const requestId = e.target.closest('.edit-maintenance-btn').getAttribute('data-request-id');
@@ -487,6 +546,17 @@ function setupDynamicEventListeners() {
             deleteMaintenance(requestId);
         }
         
+        if (e.target.closest('.info-inventory-btn')) {
+            const itemId = e.target.closest('.info-inventory-btn').getAttribute('data-item-id');
+            showInventoryDetails(itemId);
+        }
+
+        if (e.target.closest('#edit-inventory-from-details-btn')) {
+            const itemId = document.getElementById('edit-inventory-from-details-btn').getAttribute('data-item-id');
+            closeModal('inventory-details-modal');
+            editInventory(itemId);
+        }
+
         // Edit inventory button
         if (e.target.closest('.edit-inventory-btn')) {
             const itemId = e.target.closest('.edit-inventory-btn').getAttribute('data-item-id');
@@ -821,11 +891,9 @@ async function updateDashboard() {
         document.getElementById('occupied-units').textContent = tenants.filter(t => t.status === 'active').length;
         document.getElementById('pending-maintenance').textContent = maintenanceRequests.filter(m => m.status === 'pending').length;
         
-        const activeTenants = tenants.filter(t => t.status === 'active');
-        const monthlyRevenue = activeTenants.reduce((sum, t) => sum + t.rentAmount, 0);
+        const totalRevenue = tenants.reduce((sum, tenant) => sum + (Number(tenant.amountPaid) || 0), 0);
 
-        // Dashboard revenue display (Rupees)
-        document.getElementById('monthly-revenue').textContent = `Rs. ${monthlyRevenue.toFixed(2)}`;
+        document.getElementById('monthly-revenue').textContent = `Rs. ${totalRevenue.toFixed(2)}`;
     }
 }
 
@@ -833,6 +901,10 @@ async function updateDashboard() {
 async function handleAddTenant(e) {
     console.log('🚀 handleAddTenant function called!');
     e.preventDefault();
+    if (handleAddTenant.saving) {
+        return;
+    }
+    handleAddTenant.saving = true;
     
     try {
         console.log('📝 Processing tenant form submission...');
@@ -852,9 +924,16 @@ async function handleAddTenant(e) {
             currency: document.getElementById('currency'),
             rentAmount: document.getElementById('rent-amount'),
             deposit: document.getElementById('deposit'),
+            amountPaid: document.getElementById('amount-paid'),
             bookingSource: document.getElementById('booking-source'),
             specialRequests: document.getElementById('special-requests'),
-            remarks: document.getElementById('remarks')
+            remarks: document.getElementById('remarks'),
+            occupation: document.getElementById('tenant-occupation'),
+            address: document.getElementById('tenant-address'),
+            nicNumber: document.getElementById('tenant-nic-number'),
+            emergencyName: document.getElementById('emergency-contact-name'),
+            emergencyPhone: document.getElementById('emergency-contact-phone'),
+            emergencyRelationship: document.getElementById('emergency-contact-relationship')
         };
         
         // Validate form fields
@@ -898,10 +977,40 @@ async function handleAddTenant(e) {
                 isValid = false;
             }
         }
+
+        if (formFields.emergencyPhone && formFields.emergencyPhone.value.trim()) {
+            const phoneRegex = /^\d{10}$/;
+            const cleanPhone = formFields.emergencyPhone.value.replace(/\D/g, '');
+            if (!phoneRegex.test(cleanPhone)) {
+                showFieldError(formFields.emergencyPhone, 'Please enter a valid 10-digit phone number');
+                isValid = false;
+            }
+        }
+
+        if (formFields.amountPaid && formFields.amountPaid.value.trim()) {
+            const paid = Number(formFields.amountPaid.value);
+            if (!Number.isFinite(paid) || paid < 0) {
+                showFieldError(formFields.amountPaid, 'Amount paid must be zero or greater');
+                isValid = false;
+            }
+        }
         
         if (!isValid) {
             showGeneralFormError('Please fix the errors below before submitting');
             return;
+        }
+
+        const nicInput = document.getElementById('tenant-nic-photo');
+        const nicFile = nicInput && nicInput.files && nicInput.files[0];
+        let nicBlob = null;
+        if (nicFile) {
+            try {
+                nicBlob = await compressNicPhoto(nicFile);
+            } catch (photoError) {
+                showFieldError(nicInput, photoError.message);
+                showGeneralFormError(photoError.message);
+                return;
+            }
         }
         
         console.log('🔍 Form field elements found:', Object.keys(formFields).map(key => ({
@@ -921,9 +1030,18 @@ async function handleAddTenant(e) {
             currency: formFields.currency?.value || '',
             rentAmount: parseFloat(formFields.rentAmount?.value || '0'),
             deposit: parseFloat(formFields.deposit?.value || '0'),
+            amountPaid: parseFloat(formFields.amountPaid?.value || '0'),
             bookingSource: formFields.bookingSource?.value || '',
             specialRequests: formFields.specialRequests?.value || '',
             remarks: formFields.remarks?.value || '',
+            occupation: formFields.occupation?.value.trim() || '',
+            address: formFields.address?.value.trim() || '',
+            nicNumber: formFields.nicNumber?.value.trim() || '',
+            emergencyContact: {
+                name: formFields.emergencyName?.value.trim() || '',
+                phone: formFields.emergencyPhone?.value.trim() || '',
+                relationship: formFields.emergencyRelationship?.value.trim() || ''
+            },
             status: 'active'
         };
         
@@ -937,9 +1055,6 @@ async function handleAddTenant(e) {
             // Update existing tenant
             console.log(`🔄 Updating tenant with ID: ${editId}`);
             response = await api.updateTenant(editId, tenantData);
-            if (response.success) {
-                showMessage('Tenant updated successfully!', 'success');
-            }
         } else {
             // Create new tenant
             console.log('🆕 Creating new tenant...');
@@ -948,9 +1063,6 @@ async function handleAddTenant(e) {
             try {
                 response = await api.createTenant(tenantData);
                 console.log('📡 API response received:', response);
-                if (response.success) {
-                    showMessage('Tenant added successfully!', 'success');
-                }
             } catch (apiError) {
                 console.error('❌ API call failed:', apiError);
                 throw apiError;
@@ -959,6 +1071,29 @@ async function handleAddTenant(e) {
         
         if (response.success) {
             console.log('✅ Tenant saved successfully');
+            const savedId = editId || (response.data && (response.data._id || response.data.id));
+            const tenantForm = document.getElementById('add-tenant-form');
+            const removeNic = tenantForm && tenantForm.getAttribute('data-remove-nic') === 'true';
+            const hadNic = tenantForm && tenantForm.getAttribute('data-has-nic') === 'true';
+            let photoWarning = '';
+
+            try {
+                if (savedId && nicBlob) {
+                    await api.uploadNicPhoto(savedId, nicBlob);
+                } else if (savedId && removeNic && hadNic) {
+                    await api.deleteNicPhoto(savedId);
+                }
+            } catch (photoError) {
+                console.error('❌ NIC photograph was not saved:', photoError);
+                photoWarning = nicBlob
+                    ? ' The tenant was saved, but the NIC photograph could not be uploaded. Edit the tenant and try the photo again.'
+                    : ' The tenant was saved, but the NIC photograph could not be removed.';
+            }
+
+            showMessage(
+                (editId ? 'Tenant updated successfully!' : 'Tenant added successfully!') + photoWarning,
+                photoWarning ? 'error' : 'success'
+            );
             closeModal('add-tenant-modal');
             // Clear the edit ID
             document.getElementById('add-tenant-form').removeAttribute('data-edit-id');
@@ -980,11 +1115,17 @@ async function handleAddTenant(e) {
     } catch (error) {
         console.error('❌ Error saving tenant:', error);
         showMessage('Error saving tenant: ' + error.message, 'error');
+    } finally {
+        handleAddTenant.saving = false;
     }
 }
 
 async function handleAddMaintenance(e) {
     e.preventDefault();
+    if (handleAddMaintenance.saving) {
+        return;
+    }
+    handleAddMaintenance.saving = true;
     
     try {
         console.log('🔧 Processing maintenance form submission...');
@@ -995,7 +1136,8 @@ async function handleAddMaintenance(e) {
             type: document.getElementById('maintenance-type'),
             description: document.getElementById('maintenance-description'),
             priority: document.getElementById('maintenance-priority'),
-            reportedDate: document.getElementById('maintenance-date')
+            reportedDate: document.getElementById('maintenance-date'),
+            cost: document.getElementById('maintenance-cost')
         };
         
         console.log('🔍 Maintenance form field elements found:', Object.keys(formFields).map(key => ({
@@ -1004,16 +1146,32 @@ async function handleAddMaintenance(e) {
             value: formFields[key] ? formFields[key].value : 'NOT FOUND'
         })));
         
+        let maintenanceCost = 0;
+        try {
+            maintenanceCost = readCost(formFields.cost);
+        } catch (costError) {
+            showFieldError(formFields.cost, costError.message);
+            return;
+        }
+
         const maintenanceData = {
             apartmentNumber: formFields.apartmentNumber?.value || '',
             type: formFields.type?.value || '',
             description: formFields.description?.value || '',
             priority: formFields.priority?.value || 'medium',
             reportedDate: formFields.reportedDate?.value || new Date().toISOString().split('T')[0],
-            status: 'pending'
+            estimatedCost: maintenanceCost
         };
         
         console.log('📋 Maintenance data:', maintenanceData);
+
+        let photoBlob = null;
+        try {
+            photoBlob = await prepareRecordPhoto('maintenance');
+        } catch (photoError) {
+            showFieldError(document.getElementById('maintenance-photo'), photoError.message);
+            return;
+        }
         
         // Check if this is an edit operation
         const editId = document.getElementById('maintenance-form').getAttribute('data-edit-id');
@@ -1023,10 +1181,8 @@ async function handleAddMaintenance(e) {
             // Update existing maintenance request
             console.log(`🔄 Updating maintenance request with ID: ${editId}`);
             response = await api.updateMaintenance(editId, maintenanceData);
-            if (response.success) {
-                showMessage('Maintenance request updated successfully!', 'success');
-            }
         } else {
+            maintenanceData.status = 'pending';
             // Create new maintenance request
             console.log('🆕 Creating new maintenance request...');
             console.log('📡 Making API call to create maintenance request...');
@@ -1034,9 +1190,6 @@ async function handleAddMaintenance(e) {
             try {
                 response = await api.createMaintenance(maintenanceData);
                 console.log('📡 Maintenance API response received:', response);
-                if (response.success) {
-                    showMessage('Maintenance request submitted successfully!', 'success');
-                }
             } catch (apiError) {
                 console.error('❌ Maintenance API call failed:', apiError);
                 throw apiError;
@@ -1044,6 +1197,12 @@ async function handleAddMaintenance(e) {
         }
         
         if (response.success) {
+            const savedId = editId || (response.data && (response.data._id || response.data.id));
+            const photoWarning = await commitRecordPhoto('maintenance', savedId, photoBlob);
+            showMessage(
+                (editId ? 'Maintenance request updated successfully!' : 'Maintenance request submitted successfully!') + photoWarning,
+                photoWarning ? 'error' : 'success'
+            );
             closeModal('maintenance-modal');
             // Clear the edit ID
             document.getElementById('maintenance-form').removeAttribute('data-edit-id');
@@ -1059,11 +1218,17 @@ async function handleAddMaintenance(e) {
     } catch (error) {
         console.error('❌ Error adding maintenance request:', error);
         showMessage('Error adding maintenance request: ' + error.message, 'error');
+    } finally {
+        handleAddMaintenance.saving = false;
     }
 }
 
 async function handleAddInventory(e) {
     e.preventDefault();
+    if (handleAddInventory.saving) {
+        return;
+    }
+    handleAddInventory.saving = true;
     
     try {
         console.log('📦 Processing inventory form submission...');
@@ -1074,7 +1239,8 @@ async function handleAddInventory(e) {
             category: document.getElementById('inventory-category'),
             type: document.getElementById('item-type'),
             count: document.getElementById('item-count'),
-            notes: document.getElementById('item-notes')
+            notes: document.getElementById('item-notes'),
+            cost: document.getElementById('item-cost')
         };
         
         console.log('🔍 Inventory form field elements found:', Object.keys(formFields).map(key => ({
@@ -1083,15 +1249,32 @@ async function handleAddInventory(e) {
             value: formFields[key] ? formFields[key].value : 'NOT FOUND'
         })));
         
+        let itemCost = 0;
+        try {
+            itemCost = readCost(formFields.cost);
+        } catch (costError) {
+            showFieldError(formFields.cost, costError.message);
+            return;
+        }
+
         const inventoryData = {
             apartmentNumber: formFields.apartmentNumber?.value || '',
             category: formFields.category?.value || '',
             type: formFields.type?.value || '',
             count: parseInt(formFields.count?.value || '1'),
-            notes: formFields.notes?.value || ''
+            notes: formFields.notes?.value || '',
+            purchasePrice: itemCost
         };
         
         console.log('📋 Inventory data:', inventoryData);
+
+        let photoBlob = null;
+        try {
+            photoBlob = await prepareRecordPhoto('inventory');
+        } catch (photoError) {
+            showFieldError(document.getElementById('inventory-photo'), photoError.message);
+            return;
+        }
         
         // Check if this is an edit operation
         const editId = document.getElementById('inventory-form').getAttribute('data-edit-id');
@@ -1101,9 +1284,6 @@ async function handleAddInventory(e) {
             // Update existing inventory item
             console.log(`🔄 Updating inventory item with ID: ${editId}`);
             response = await api.updateInventory(editId, inventoryData);
-            if (response.success) {
-                showMessage('Inventory item updated successfully!', 'success');
-            }
         } else {
             // Create new inventory item
             console.log('🆕 Creating new inventory item...');
@@ -1112,9 +1292,6 @@ async function handleAddInventory(e) {
             try {
                 response = await api.createInventory(inventoryData);
                 console.log('📡 Inventory API response received:', response);
-                if (response.success) {
-                    showMessage('Inventory item added successfully!', 'success');
-                }
             } catch (apiError) {
                 console.error('❌ Inventory API call failed:', apiError);
                 throw apiError;
@@ -1122,6 +1299,12 @@ async function handleAddInventory(e) {
         }
         
         if (response.success) {
+            const savedId = editId || (response.data && (response.data._id || response.data.id));
+            const photoWarning = await commitRecordPhoto('inventory', savedId, photoBlob);
+            showMessage(
+                (editId ? 'Inventory item updated successfully!' : 'Inventory item added successfully!') + photoWarning,
+                photoWarning ? 'error' : 'success'
+            );
             closeModal('inventory-modal');
             // Clear the edit ID
             document.getElementById('inventory-form').removeAttribute('data-edit-id');
@@ -1136,6 +1319,8 @@ async function handleAddInventory(e) {
     } catch (error) {
         console.error('❌ Error adding inventory item:', error);
         showMessage('Error adding inventory item: ' + error.message, 'error');
+    } finally {
+        handleAddInventory.saving = false;
     }
 }
 
@@ -1203,7 +1388,7 @@ function renderTenantsTable(tenantsToRender = tenants) {
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <div class="recent-item-avatar">${tenant.name.charAt(0).toUpperCase()}</div>
                     <div>
-                        <strong>${tenant.name}</strong>
+                        <strong>${tenant.name}</strong>${tenant.hasNicPhoto ? '<i class="fas fa-id-card nic-on-file" title="NIC photograph on file"></i>' : ''}
                         <br>
                         <small>${tenant.email || 'No email'}</small>
                     </div>
@@ -1257,9 +1442,13 @@ function renderMaintenanceLists() {
                     <span class="priority-badge priority-${request.priority}">${request.priority}</span>
                 </div>
                 <p>${request.description}</p>
+                <p class="maintenance-cost"><strong>Cost:</strong> ${formatMoney(request.estimatedCost)}</p>
                 <div class="maintenance-footer">
                     <small>Reported: ${formatDate(request.reportedDate)}</small>
                     <div class="maintenance-actions">
+                        <button class="btn-secondary info-maintenance-btn" data-request-id="${request.id}" title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                         <button class="btn-secondary edit-maintenance-btn" data-request-id="${request.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1292,9 +1481,13 @@ function renderMaintenanceLists() {
                     <span class="status-badge status-completed">Completed</span>
                 </div>
                 <p>${request.description}</p>
+                <p class="maintenance-cost"><strong>Cost:</strong> ${formatMoney(request.estimatedCost)}</p>
                 <div class="maintenance-footer">
                     <small>Completed: ${formatDate(request.completedDate)}</small>
                     <div class="maintenance-actions">
+                        <button class="btn-secondary info-maintenance-btn" data-request-id="${request.id}" title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                         <button class="btn-secondary edit-maintenance-btn" data-request-id="${request.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1376,6 +1569,10 @@ function renderApartmentsGrid() {
                         <span class="detail-value">${apartment.bathrooms}</span>
                     </div>
                     <div class="detail-row">
+                        <span class="detail-label">Monthly Rate:</span>
+                        <span class="detail-value">${formatMoney(apartment.monthlyRate)}</span>
+                    </div>
+                    <div class="detail-row">
                         <span class="detail-label">Current Tenant:</span>
                         <span class="detail-value">${isTenantActive(tenant) ? tenant.name : 'None'}</span>
                     </div>
@@ -1417,6 +1614,9 @@ function renderInventoryGrids() {
                 <div class="inventory-header">
                     <h4>${item.type}</h4>
                     <div class="inventory-actions">
+                        <button class="btn-secondary info-inventory-btn" data-item-id="${item.id}" title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                         <button class="btn-secondary edit-inventory-btn" data-item-id="${item.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1426,9 +1626,10 @@ function renderInventoryGrids() {
                     </div>
                 </div>
                 <div class="inventory-details">
-                    <p><strong>Apartment:</strong> ${item.apartmentNumber}</p>
-                    <p><strong>Count:</strong> ${item.count} ${item.count === 1 ? 'item' : 'items'}</p>
-                    ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                    <p><strong>Apartment</strong><span>${item.apartmentNumber}</span></p>
+                    <p><strong>Count</strong><span>${item.count} ${item.count === 1 ? 'item' : 'items'}</span></p>
+                    <p><strong>Cost</strong><span>${formatMoney(item.purchasePrice)}</span></p>
+                    ${item.notes ? `<p><strong>Notes</strong><span>${item.notes}</span></p>` : ''}
                 </div>
             </div>
         `).join('');
@@ -1449,6 +1650,9 @@ function renderInventoryGrids() {
                 <div class="inventory-header">
                     <h4>${item.type}</h4>
                     <div class="inventory-actions">
+                        <button class="btn-secondary info-inventory-btn" data-item-id="${item.id}" title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                         <button class="btn-secondary edit-inventory-btn" data-item-id="${item.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1458,9 +1662,10 @@ function renderInventoryGrids() {
                     </div>
                 </div>
                 <div class="inventory-details">
-                    <p><strong>Apartment:</strong> ${item.apartmentNumber}</p>
-                    <p><strong>Count:</strong> ${item.count} ${item.count === 1 ? 'item' : 'items'}</p>
-                    ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                    <p><strong>Apartment</strong><span>${item.apartmentNumber}</span></p>
+                    <p><strong>Count</strong><span>${item.count} ${item.count === 1 ? 'item' : 'items'}</span></p>
+                    <p><strong>Cost</strong><span>${formatMoney(item.purchasePrice)}</span></p>
+                    ${item.notes ? `<p><strong>Notes</strong><span>${item.notes}</span></p>` : ''}
                 </div>
             </div>
         `).join('');
@@ -1481,6 +1686,9 @@ function renderInventoryGrids() {
                 <div class="inventory-header">
                     <h4>${item.type}</h4>
                     <div class="inventory-actions">
+                        <button class="btn-secondary info-inventory-btn" data-item-id="${item.id}" title="View Details">
+                            <i class="fas fa-info-circle"></i>
+                        </button>
                         <button class="btn-secondary edit-inventory-btn" data-item-id="${item.id}" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -1490,9 +1698,10 @@ function renderInventoryGrids() {
                     </div>
                 </div>
                 <div class="inventory-details">
-                    <p><strong>Apartment:</strong> ${item.apartmentNumber}</p>
-                    <p><strong>Count:</strong> ${item.count} ${item.count === 1 ? 'item' : 'items'}</p>
-                    ${item.notes ? `<p><strong>Notes:</strong> ${item.notes}</p>` : ''}
+                    <p><strong>Apartment</strong><span>${item.apartmentNumber}</span></p>
+                    <p><strong>Count</strong><span>${item.count} ${item.count === 1 ? 'item' : 'items'}</span></p>
+                    <p><strong>Cost</strong><span>${formatMoney(item.purchasePrice)}</span></p>
+                    ${item.notes ? `<p><strong>Notes</strong><span>${item.notes}</span></p>` : ''}
                 </div>
             </div>
         `).join('');
@@ -1517,12 +1726,27 @@ async function editTenant(tenantId) {
             document.getElementById('currency').value = tenant.currency || '';
             document.getElementById('rent-amount').value = tenant.rentAmount;
             document.getElementById('deposit').value = tenant.deposit || '';
+            document.getElementById('amount-paid').value = Number.isFinite(Number(tenant.amountPaid)) ? tenant.amountPaid : '';
+            updateRentAmountLabel();
+            updateAmountDue();
             document.getElementById('booking-source').value = tenant.bookingSource || '';
             document.getElementById('special-requests').value = tenant.specialRequests || '';
             document.getElementById('remarks').value = tenant.remarks || '';
+            document.getElementById('tenant-occupation').value = tenant.occupation || '';
+            document.getElementById('tenant-address').value = tenant.address || '';
+            document.getElementById('tenant-nic-number').value = tenant.nicNumber || '';
+            document.getElementById('emergency-contact-name').value = tenant.emergencyContact && tenant.emergencyContact.name || '';
+            document.getElementById('emergency-contact-phone').value = tenant.emergencyContact && tenant.emergencyContact.phone || '';
+            document.getElementById('emergency-contact-relationship').value = tenant.emergencyContact && tenant.emergencyContact.relationship || '';
+            resetNicPhotoField();
             
             // Store the tenant ID for update
-            document.getElementById('add-tenant-form').setAttribute('data-edit-id', tenantId);
+            const tenantForm = document.getElementById('add-tenant-form');
+            tenantForm.setAttribute('data-edit-id', tenantId);
+            if (tenant.nicPhoto && tenant.nicPhoto.key) {
+                tenantForm.setAttribute('data-has-nic', 'true');
+                loadExistingNicPreview(tenantId);
+            }
             
             // Update modal title and button text for edit mode
             const modal = document.getElementById('add-tenant-modal');
@@ -1578,17 +1802,27 @@ async function showTenantDetails(tenantId) {
                     document.getElementById('detail-name').textContent = tenant.name || 'Not provided';
                     document.getElementById('detail-phone').textContent = tenant.phone || 'Not provided';
                     document.getElementById('detail-email').textContent = tenant.email || 'Not provided';
+                    document.getElementById('detail-occupation').textContent = tenant.occupation || 'Not provided';
+                    document.getElementById('detail-address').textContent = tenant.address || 'Not provided';
+                    document.getElementById('detail-nic-number').textContent = tenant.nicNumber || 'Not provided';
+                    document.getElementById('detail-emergency-name').textContent = tenant.emergencyContact && tenant.emergencyContact.name || 'Not provided';
+                    document.getElementById('detail-emergency-phone').textContent = tenant.emergencyContact && tenant.emergencyContact.phone || 'Not provided';
+                    document.getElementById('detail-emergency-relationship').textContent = tenant.emergencyContact && tenant.emergencyContact.relationship || 'Not provided';
                     document.getElementById('detail-apartment').textContent = tenant.apartmentNumber || 'Not provided';
                     document.getElementById('detail-checkin').textContent = tenant.checkinDate ? formatDate(tenant.checkinDate) : 'Not provided';
                     document.getElementById('detail-checkout').textContent = tenant.checkoutDate ? formatDate(tenant.checkoutDate) : 'Not provided';
                     document.getElementById('detail-rental-basis').textContent = tenant.rentalBasis ? tenant.rentalBasis.charAt(0).toUpperCase() + tenant.rentalBasis.slice(1) : 'Not provided';
                     document.getElementById('detail-currency').textContent = tenant.currency || 'Not provided';
                     document.getElementById('detail-rent-amount').textContent = tenant.rentAmount ? `${getCurrencySymbol(tenant.currency)}${tenant.rentAmount.toFixed(2)}` : 'Not provided';
-                    document.getElementById('detail-deposit').textContent = tenant.deposit ? `${getCurrencySymbol(tenant.currency)}${tenant.deposit.toFixed(2)}` : 'Not provided';
+                    document.getElementById('detail-deposit').textContent = tenant.deposit ? `${getCurrencySymbol(tenant.currency)}${Number(tenant.deposit).toFixed(2)}` : 'Not provided';
+                    document.getElementById('detail-amount-paid').textContent = formatTenantMoney(tenant.amountPaid, tenant.currency);
+                    document.getElementById('detail-rent-periods').textContent = billingSummary(tenant);
+                    document.getElementById('detail-amount-due').textContent = formatTenantMoney(calculateAmountDue(tenant), tenant.currency);
                     document.getElementById('detail-booking-source').textContent = tenant.bookingSource ? tenant.bookingSource.charAt(0).toUpperCase() + tenant.bookingSource.slice(1) : 'Not provided';
             document.getElementById('detail-status').innerHTML = `<span class="status-badge status-${tenant.status}">${tenant.status}</span>`;
             document.getElementById('detail-special-requests').textContent = tenant.specialRequests || 'Not provided';
             document.getElementById('detail-remarks').textContent = tenant.remarks || 'Not provided';
+            showNicPhotoInDetails(tenant);
             
             // Store the tenant ID for the edit button
             document.getElementById('edit-from-details-btn').setAttribute('data-tenant-id', tenantId);
@@ -1625,6 +1859,87 @@ async function completeMaintenance(requestId) {
     }
 }
 
+let detailMaintenanceRequest = 0;
+let detailMaintenanceObjectUrl = null;
+
+function clearDetailMaintenancePhoto() {
+    if (detailMaintenanceObjectUrl) {
+        URL.revokeObjectURL(detailMaintenanceObjectUrl);
+        detailMaintenanceObjectUrl = null;
+    }
+    const img = document.getElementById('detail-maintenance-photo');
+    if (img) {
+        img.removeAttribute('src');
+        img.hidden = true;
+    }
+}
+
+function revokeDetailMaintenancePhoto() {
+    detailMaintenanceRequest += 1;
+    clearDetailMaintenancePhoto();
+}
+
+async function showMaintenancePhotoInDetails(request) {
+    const requestId = ++detailMaintenanceRequest;
+    const img = document.getElementById('detail-maintenance-photo');
+    const empty = document.getElementById('detail-maintenance-photo-empty');
+    clearDetailMaintenancePhoto();
+    if (!img || !empty) {
+        return;
+    }
+    empty.textContent = 'No photograph on file';
+    if (!request.photo || !request.photo.key) {
+        empty.hidden = false;
+        return;
+    }
+    empty.hidden = true;
+    try {
+        const blob = await api.fetchRecordPhoto('maintenance', request._id || request.id);
+        if (requestId !== detailMaintenanceRequest) {
+            return;
+        }
+        if (!blob) {
+            empty.hidden = false;
+            return;
+        }
+        detailMaintenanceObjectUrl = URL.createObjectURL(blob);
+        img.src = detailMaintenanceObjectUrl;
+        img.hidden = false;
+    } catch (error) {
+        if (requestId !== detailMaintenanceRequest) {
+            return;
+        }
+        console.error('Could not load maintenance photograph:', error);
+        empty.textContent = 'Photograph could not be loaded';
+        empty.hidden = false;
+    }
+}
+
+async function showMaintenanceDetails(requestId) {
+    try {
+        const response = await api.getMaintenance(requestId);
+        if (!response.success) {
+            showMessage('Failed to load maintenance request: ' + response.message, 'error');
+            return;
+        }
+        const request = response.data;
+        document.getElementById('detail-maintenance-type').textContent = inventoryLabel(request.type);
+        document.getElementById('detail-maintenance-apartment').textContent = request.apartmentNumber || 'Not provided';
+        document.getElementById('detail-maintenance-priority').textContent = inventoryLabel(request.priority);
+        document.getElementById('detail-maintenance-status').textContent = inventoryLabel(request.status);
+        document.getElementById('detail-maintenance-cost').textContent = formatMoney(request.estimatedCost);
+        document.getElementById('detail-maintenance-reported').textContent = request.reportedDate ? formatDate(request.reportedDate) : 'Not provided';
+        document.getElementById('detail-maintenance-completed').textContent = request.completedDate ? formatDate(request.completedDate) : 'Not completed';
+        document.getElementById('detail-maintenance-description').textContent = request.description || 'Not provided';
+        document.getElementById('edit-maintenance-from-details-btn').setAttribute('data-request-id', requestId);
+        showMaintenancePhotoInDetails(request);
+        showModal('maintenance-details-modal');
+    } catch (error) {
+        console.error('Error loading maintenance request:', error);
+        showMessage('Error loading maintenance request: ' + error.message, 'error');
+    }
+}
+
 async function editMaintenance(requestId) {
     try {
         const response = await api.getMaintenance(requestId);
@@ -1637,9 +1952,16 @@ async function editMaintenance(requestId) {
             document.getElementById('maintenance-description').value = maintenance.description;
             document.getElementById('maintenance-priority').value = maintenance.priority;
             document.getElementById('maintenance-date').value = maintenance.reportedDate ? maintenance.reportedDate.split('T')[0] : '';
+            document.getElementById('maintenance-cost').value = Number.isFinite(Number(maintenance.estimatedCost)) ? maintenance.estimatedCost : '';
+            resetRecordPhoto('maintenance');
             
             // Store the maintenance ID for update
-            document.getElementById('maintenance-form').setAttribute('data-edit-id', requestId);
+            const maintenanceForm = document.getElementById('maintenance-form');
+            maintenanceForm.setAttribute('data-edit-id', requestId);
+            if (maintenance.photo && maintenance.photo.key) {
+                maintenanceForm.setAttribute('data-has-photo', 'true');
+                loadRecordPhoto('maintenance', requestId);
+            }
             
             // Update modal title and button text for edit mode
             const modal = document.getElementById('maintenance-modal');
@@ -1679,6 +2001,93 @@ async function deleteMaintenance(requestId) {
     }
 }
 
+function inventoryLabel(value) {
+    if (!value) {
+        return 'Not provided';
+    }
+    return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+let detailInventoryRequest = 0;
+let detailInventoryObjectUrl = null;
+
+function clearDetailInventoryPhoto() {
+    if (detailInventoryObjectUrl) {
+        URL.revokeObjectURL(detailInventoryObjectUrl);
+        detailInventoryObjectUrl = null;
+    }
+    const img = document.getElementById('detail-inventory-photo');
+    if (img) {
+        img.removeAttribute('src');
+        img.hidden = true;
+    }
+}
+
+function revokeDetailInventoryPhoto() {
+    detailInventoryRequest += 1;
+    clearDetailInventoryPhoto();
+}
+
+async function showInventoryPhotoInDetails(item) {
+    const requestId = ++detailInventoryRequest;
+    const img = document.getElementById('detail-inventory-photo');
+    const empty = document.getElementById('detail-inventory-photo-empty');
+    clearDetailInventoryPhoto();
+    if (!img || !empty) {
+        return;
+    }
+    empty.textContent = 'No photograph on file';
+    if (!item.photo || !item.photo.key) {
+        empty.hidden = false;
+        return;
+    }
+    empty.hidden = true;
+    try {
+        const blob = await api.fetchRecordPhoto('inventory', item._id || item.id);
+        if (requestId !== detailInventoryRequest) {
+            return;
+        }
+        if (!blob) {
+            empty.hidden = false;
+            return;
+        }
+        detailInventoryObjectUrl = URL.createObjectURL(blob);
+        img.src = detailInventoryObjectUrl;
+        img.hidden = false;
+    } catch (error) {
+        if (requestId !== detailInventoryRequest) {
+            return;
+        }
+        console.error('Could not load inventory photograph:', error);
+        empty.textContent = 'Photograph could not be loaded';
+        empty.hidden = false;
+    }
+}
+
+async function showInventoryDetails(itemId) {
+    try {
+        const response = await api.getInventory(itemId);
+        if (!response.success) {
+            showMessage('Failed to load inventory item: ' + response.message, 'error');
+            return;
+        }
+        const item = response.data;
+        const count = Number(item.count) || 0;
+        document.getElementById('detail-inventory-type').textContent = item.type || 'Not provided';
+        document.getElementById('detail-inventory-category').textContent = inventoryLabel(item.category);
+        document.getElementById('detail-inventory-count').textContent = count + (count === 1 ? ' item' : ' items');
+        document.getElementById('detail-inventory-apartment').textContent = item.apartmentNumber || 'Not provided';
+        document.getElementById('detail-inventory-cost').textContent = formatMoney(item.purchasePrice);
+        document.getElementById('detail-inventory-notes').textContent = item.notes || 'Not provided';
+        document.getElementById('edit-inventory-from-details-btn').setAttribute('data-item-id', itemId);
+        showInventoryPhotoInDetails(item);
+        showModal('inventory-details-modal');
+    } catch (error) {
+        console.error('Error loading inventory item:', error);
+        showMessage('Error loading inventory item: ' + error.message, 'error');
+    }
+}
+
 async function editInventory(itemId) {
     try {
         const response = await api.getInventory(itemId);
@@ -1691,9 +2100,16 @@ async function editInventory(itemId) {
             document.getElementById('item-type').value = item.type;
             document.getElementById('item-count').value = item.count;
             document.getElementById('item-notes').value = item.notes || '';
+            document.getElementById('item-cost').value = Number.isFinite(Number(item.purchasePrice)) ? item.purchasePrice : '';
+            resetRecordPhoto('inventory');
             
             // Store the item ID for update
-            document.getElementById('inventory-form').setAttribute('data-edit-id', itemId);
+            const inventoryForm = document.getElementById('inventory-form');
+            inventoryForm.setAttribute('data-edit-id', itemId);
+            if (item.photo && item.photo.key) {
+                inventoryForm.setAttribute('data-has-photo', 'true');
+                loadRecordPhoto('inventory', itemId);
+            }
             
             // Update modal title and button text for edit mode
             const modal = document.getElementById('inventory-modal');
@@ -1751,6 +2167,7 @@ async function handleAddApartment(e) {
             size: document.getElementById('apartment-size'),
             bedrooms: document.getElementById('apartment-bedrooms'),
             bathrooms: document.getElementById('apartment-bathrooms'),
+            monthlyRate: document.getElementById('apartment-monthly-rate'),
             status: document.getElementById('apartment-status')
         };
         
@@ -1770,7 +2187,8 @@ async function handleAddApartment(e) {
             number: 'Apartment Number',
             size: 'Size',
             bedrooms: 'Number of Bedrooms',
-            bathrooms: 'Number of Bathrooms'
+            bathrooms: 'Number of Bathrooms',
+            monthlyRate: 'Standard Monthly Rate'
         };
         
         for (const [fieldId, fieldName] of Object.entries(requiredFields)) {
@@ -1788,6 +2206,14 @@ async function handleAddApartment(e) {
                 isValid = false;
             } else {
                 console.log(`✅ ${fieldName} validation passed`);
+            }
+        }
+
+        if (formFields.monthlyRate && String(formFields.monthlyRate.value).trim()) {
+            const rate = Number(formFields.monthlyRate.value);
+            if (!Number.isFinite(rate) || rate < 0) {
+                showFieldError(formFields.monthlyRate, 'Standard monthly rate must be zero or greater');
+                isValid = false;
             }
         }
         
@@ -1810,6 +2236,7 @@ async function handleAddApartment(e) {
             size: parseFloat(formFields.size.value),
             bedrooms: parseInt(formFields.bedrooms.value),
             bathrooms: parseFloat(formFields.bathrooms.value),
+            monthlyRate: parseFloat(formFields.monthlyRate.value),
             status: formFields.status.value
         };
         
@@ -1952,6 +2379,7 @@ async function editApartment(apartmentId) {
             document.getElementById('apartment-size').value = apartment.size;
             document.getElementById('apartment-bedrooms').value = apartment.bedrooms;
             document.getElementById('apartment-bathrooms').value = apartment.bathrooms;
+            document.getElementById('apartment-monthly-rate').value = apartment.monthlyRate === null || apartment.monthlyRate === undefined || apartment.monthlyRate === '' ? '' : apartment.monthlyRate;
             document.getElementById('apartment-status').value = apartment.status;
             
             // Store the apartment ID for update (use _id or id)
@@ -2025,6 +2453,7 @@ async function viewApartmentDetails(apartmentId) {
         document.getElementById('detail-apartment-size').textContent = `${apartment.size} sq ft`;
         document.getElementById('detail-apartment-bedrooms').textContent = apartment.bedrooms;
         document.getElementById('detail-apartment-bathrooms').textContent = apartment.bathrooms;
+        document.getElementById('detail-apartment-monthly-rate').textContent = formatMoney(apartment.monthlyRate);
         
         const statusBadge = document.getElementById('detail-apartment-status');
         statusBadge.textContent = apartmentStatus;
@@ -2121,6 +2550,94 @@ function viewApartmentMaintenance(apartmentNumber) {
 }
 
 // Utility functions
+function billingSummary(source) {
+    if (window.tenantBilling) {
+        return window.tenantBilling.billingSummary(source);
+    }
+    return '1 month of rent';
+}
+
+function calculateAmountDue(source) {
+    if (window.tenantBilling) {
+        return window.tenantBilling.calculateTenantAmountDue(source);
+    }
+    const rent = Number(source.rentAmount) || 0;
+    const deposit = Number(source.deposit) || 0;
+    const paid = Number(source.amountPaid) || 0;
+    return rent + deposit - paid;
+}
+
+function formatTenantMoney(amount, currency) {
+    const value = Number(amount);
+    const safeValue = Number.isFinite(value) ? value : 0;
+    const symbol = getCurrencySymbol(currency);
+    const formatted = Math.abs(safeValue).toFixed(2);
+    return safeValue < 0 ? `-${symbol}${formatted}` : `${symbol}${formatted}`;
+}
+
+function updateRentAmountLabel() {
+    const basis = document.getElementById('rental-basis');
+    const label = document.querySelector('label[for="rent-amount"]');
+    if (!basis || !label) {
+        return;
+    }
+    if (basis.value === 'daily') {
+        label.textContent = 'Rent Amount (per day) *';
+    } else if (basis.value === 'monthly') {
+        label.textContent = 'Rent Amount (per month) *';
+    } else {
+        label.textContent = 'Rent Amount *';
+    }
+}
+
+function updateAmountDue() {
+    const dueField = document.getElementById('amount-due');
+    if (!dueField) {
+        return;
+    }
+    const source = {
+        rentalBasis: document.getElementById('rental-basis') && document.getElementById('rental-basis').value,
+        checkinDate: document.getElementById('checkin-date') && document.getElementById('checkin-date').value,
+        checkoutDate: document.getElementById('checkout-date') && document.getElementById('checkout-date').value,
+        rentAmount: document.getElementById('rent-amount') && document.getElementById('rent-amount').value,
+        deposit: document.getElementById('deposit') && document.getElementById('deposit').value,
+        amountPaid: document.getElementById('amount-paid') && document.getElementById('amount-paid').value
+    };
+    const due = calculateAmountDue(source);
+    const currency = document.getElementById('currency') && document.getElementById('currency').value;
+    dueField.value = formatTenantMoney(due, currency);
+    const hint = document.getElementById('amount-due-hint');
+    if (hint) {
+        const summary = billingSummary(source);
+        hint.textContent = source.rentalBasis === 'daily'
+            ? summary + '. The first day is due at check-in, then one more day of rent is added each day.'
+            : summary + '. The first month is due at check-in. Another month of rent is added on each monthly anniversary.';
+    }
+}
+
+function formatMoney(amount) {
+    if (amount === null || amount === undefined || amount === '') {
+        return 'Not set';
+    }
+    const value = Number(amount);
+    if (!Number.isFinite(value)) {
+        return 'Not set';
+    }
+    return `Rs. ${value.toFixed(2)}`;
+}
+
+function readCost(input) {
+    const raw = input && input.value ? input.value.trim() : '';
+    if (raw === '') {
+        return 0;
+    }
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+        throw new Error('Cost must be zero or greater');
+    }
+    return value;
+}
+
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -2249,7 +2766,16 @@ function validateField(field) {
     }
     
     // Phone validation (10 digits)
-    if (fieldId === 'tenant-phone' && value) {
+    if (fieldId === 'amount-paid' && value) {
+        const paid = Number(value);
+        if (!Number.isFinite(paid) || paid < 0) {
+            showFieldError(field, 'Amount paid must be zero or greater');
+            showGeneralFormError('Amount paid must be zero or greater');
+            return false;
+        }
+    }
+
+    if ((fieldId === 'tenant-phone' || fieldId === 'emergency-contact-phone') && value) {
         const phoneRegex = /^\d{10}$/;
         const cleanPhone = value.replace(/\D/g, ''); // Remove non-digits
         if (!phoneRegex.test(cleanPhone)) {
@@ -2260,6 +2786,403 @@ function validateField(field) {
     }
     
     return true;
+}
+
+let nicPhotoObjectUrl = null;
+let detailNicObjectUrl = null;
+let nicPreviewRequest = 0;
+
+function resetNicPhotoField() {
+    nicPreviewRequest += 1;
+    const form = document.getElementById('add-tenant-form');
+    const input = document.getElementById('tenant-nic-photo');
+    if (input) {
+        input.value = '';
+    }
+    if (form) {
+        form.removeAttribute('data-remove-nic');
+        form.removeAttribute('data-has-nic');
+    }
+    hideNicPreview();
+}
+
+function hideNicPreview() {
+    if (nicPhotoObjectUrl) {
+        URL.revokeObjectURL(nicPhotoObjectUrl);
+        nicPhotoObjectUrl = null;
+    }
+    const img = document.getElementById('nic-photo-preview');
+    const wrap = document.getElementById('nic-photo-preview-wrap');
+    if (img) {
+        img.removeAttribute('src');
+    }
+    if (wrap) {
+        wrap.hidden = true;
+    }
+}
+
+function showNicPreview(source) {
+    const img = document.getElementById('nic-photo-preview');
+    const wrap = document.getElementById('nic-photo-preview-wrap');
+    if (!img || !wrap) {
+        return;
+    }
+    if (nicPhotoObjectUrl) {
+        URL.revokeObjectURL(nicPhotoObjectUrl);
+        nicPhotoObjectUrl = null;
+    }
+    if (source instanceof Blob) {
+        nicPhotoObjectUrl = URL.createObjectURL(source);
+        img.src = nicPhotoObjectUrl;
+    } else {
+        img.src = source;
+    }
+    wrap.hidden = false;
+}
+
+async function loadExistingNicPreview(tenantId) {
+    const requestId = ++nicPreviewRequest;
+    try {
+        const blob = await api.fetchNicPhoto(tenantId);
+        if (requestId !== nicPreviewRequest || !blob) {
+            return;
+        }
+        showNicPreview(blob);
+    } catch (error) {
+        console.error('Could not preview NIC photograph:', error);
+    }
+}
+
+async function handleRemoveNicPhoto() {
+    const form = document.getElementById('add-tenant-form');
+    const input = document.getElementById('tenant-nic-photo');
+    const hadNewFile = input && input.files && input.files.length > 0;
+    if (input) {
+        input.value = '';
+    }
+    if (hadNewFile && form && form.getAttribute('data-has-nic') === 'true' && form.getAttribute('data-remove-nic') !== 'true') {
+        hideNicPreview();
+        const tenantId = form.getAttribute('data-edit-id');
+        if (tenantId) {
+            loadExistingNicPreview(tenantId);
+        }
+        return;
+    }
+    if (form) {
+        form.setAttribute('data-remove-nic', 'true');
+    }
+    hideNicPreview();
+}
+
+const recordPhotoFields = {
+    maintenance: {
+        formId: 'maintenance-form',
+        inputId: 'maintenance-photo',
+        wrapId: 'maintenance-photo-preview-wrap',
+        imgId: 'maintenance-photo-preview',
+        removeId: 'maintenance-photo-remove-btn',
+        objectUrl: null,
+        requestId: 0
+    },
+    inventory: {
+        formId: 'inventory-form',
+        inputId: 'inventory-photo',
+        wrapId: 'inventory-photo-preview-wrap',
+        imgId: 'inventory-photo-preview',
+        removeId: 'inventory-photo-remove-btn',
+        objectUrl: null,
+        requestId: 0
+    }
+};
+
+const cardPhotoUrls = new Map();
+const cardPhotoGeneration = { maintenance: 0, inventory: 0 };
+
+function bindRecordPhotoField(form, name) {
+    const field = recordPhotoFields[name];
+    form.addEventListener('change', function(e) {
+        if (e.target.id !== field.inputId) {
+            return;
+        }
+        const file = e.target.files && e.target.files[0];
+        form.removeAttribute('data-remove-photo');
+        if (!file) {
+            return;
+        }
+        const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowed.includes(file.type)) {
+            e.target.value = '';
+            showFieldError(e.target, 'Photograph must be a JPEG, PNG, or WebP image');
+            return;
+        }
+        showRecordPhoto(name, file);
+    });
+
+    form.addEventListener('click', function(e) {
+        if (!e.target.closest('#' + field.removeId)) {
+            return;
+        }
+        e.preventDefault();
+        handleRemoveRecordPhoto(name);
+    });
+}
+
+function resetRecordPhoto(name) {
+    const field = recordPhotoFields[name];
+    if (!field) {
+        return;
+    }
+    field.requestId += 1;
+    const form = document.getElementById(field.formId);
+    const input = document.getElementById(field.inputId);
+    if (input) {
+        input.value = '';
+    }
+    if (form) {
+        form.removeAttribute('data-remove-photo');
+        form.removeAttribute('data-has-photo');
+    }
+    hideRecordPhoto(name);
+}
+
+function hideRecordPhoto(name) {
+    const field = recordPhotoFields[name];
+    if (field.objectUrl) {
+        URL.revokeObjectURL(field.objectUrl);
+        field.objectUrl = null;
+    }
+    const img = document.getElementById(field.imgId);
+    const wrap = document.getElementById(field.wrapId);
+    if (img) {
+        img.removeAttribute('src');
+    }
+    if (wrap) {
+        wrap.hidden = true;
+    }
+}
+
+function showRecordPhoto(name, source) {
+    const field = recordPhotoFields[name];
+    const img = document.getElementById(field.imgId);
+    const wrap = document.getElementById(field.wrapId);
+    if (!img || !wrap) {
+        return;
+    }
+    if (field.objectUrl) {
+        URL.revokeObjectURL(field.objectUrl);
+        field.objectUrl = null;
+    }
+    if (source instanceof Blob) {
+        field.objectUrl = URL.createObjectURL(source);
+        img.src = field.objectUrl;
+    } else {
+        img.src = source;
+    }
+    wrap.hidden = false;
+}
+
+async function prepareRecordPhoto(name) {
+    const field = recordPhotoFields[name];
+    const input = document.getElementById(field.inputId);
+    const file = input && input.files && input.files[0];
+    if (!file) {
+        return null;
+    }
+    return compressNicPhoto(file, 'Photograph');
+}
+
+async function commitRecordPhoto(name, savedId, photoBlob) {
+    const field = recordPhotoFields[name];
+    const form = document.getElementById(field.formId);
+    const removePhoto = form && form.getAttribute('data-remove-photo') === 'true';
+    const hadPhoto = form && form.getAttribute('data-has-photo') === 'true';
+    if (!savedId) {
+        return '';
+    }
+    try {
+        if (photoBlob) {
+            await api.uploadRecordPhoto(name, savedId, photoBlob);
+        } else if (removePhoto && hadPhoto) {
+            await api.deleteRecordPhoto(name, savedId);
+        }
+        return '';
+    } catch (error) {
+        console.error('Photograph was not saved:', error);
+        return photoBlob
+            ? ' The record was saved, but the photograph could not be uploaded. Edit it and try the photo again.'
+            : ' The record was saved, but the photograph could not be removed.';
+    }
+}
+
+async function loadRecordPhoto(name, recordId) {
+    const field = recordPhotoFields[name];
+    const requestId = ++field.requestId;
+    try {
+        const blob = await api.fetchRecordPhoto(name, recordId);
+        if (requestId !== field.requestId || !blob) {
+            return;
+        }
+        showRecordPhoto(name, blob);
+    } catch (error) {
+        console.error('Could not preview photograph:', error);
+    }
+}
+
+async function handleRemoveRecordPhoto(name) {
+    const field = recordPhotoFields[name];
+    const form = document.getElementById(field.formId);
+    const input = document.getElementById(field.inputId);
+    const hadNewFile = input && input.files && input.files.length > 0;
+    if (input) {
+        input.value = '';
+    }
+    if (hadNewFile && form && form.getAttribute('data-has-photo') === 'true' && form.getAttribute('data-remove-photo') !== 'true') {
+        hideRecordPhoto(name);
+        const recordId = form.getAttribute('data-edit-id');
+        if (recordId) {
+            loadRecordPhoto(name, recordId);
+        }
+        return;
+    }
+    if (form) {
+        form.setAttribute('data-remove-photo', 'true');
+    }
+    hideRecordPhoto(name);
+}
+
+function revokeCardPhotos(kind) {
+    for (const [key, url] of cardPhotoUrls) {
+        if (key.startsWith(kind + ':')) {
+            URL.revokeObjectURL(url);
+            cardPhotoUrls.delete(key);
+        }
+    }
+}
+
+async function loadCardPhotos(kind) {
+    const generation = ++cardPhotoGeneration[kind];
+    revokeCardPhotos(kind);
+    const images = Array.from(document.querySelectorAll('img[data-photo-kind="' + kind + '"]'));
+    await Promise.all(images.map(async (img) => {
+        try {
+            const blob = await api.fetchRecordPhoto(kind, img.dataset.photoId);
+            if (generation !== cardPhotoGeneration[kind] || !img.isConnected || !blob) {
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            cardPhotoUrls.set(kind + ':' + img.dataset.photoId, url);
+            img.src = url;
+            img.hidden = false;
+        } catch (error) {
+            console.error('Could not load photograph:', error);
+        }
+    }));
+}
+
+function compressNicPhoto(file, label = 'NIC photograph') {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+        return Promise.reject(new Error(label + ' must be a JPEG, PNG, or WebP image'));
+    }
+    if (file.size > 12 * 1024 * 1024) {
+        return Promise.reject(new Error(label + ' must be under 12 MB'));
+    }
+
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = function() {
+            const maxEdge = 1600;
+            const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+
+            const tryQuality = function(quality) {
+                canvas.toBlob(function(blob) {
+                    if (!blob) {
+                        reject(new Error('Could not read that photo. Use a JPEG, PNG, or WebP image.'));
+                        return;
+                    }
+                    if (blob.size > 3.5 * 1024 * 1024 && quality > 0.5) {
+                        tryQuality(quality - 0.15);
+                        return;
+                    }
+                    if (blob.size > 4 * 1024 * 1024) {
+                        reject(new Error(label + ' is still too large. Try a smaller image.'));
+                        return;
+                    }
+                    resolve(blob);
+                }, 'image/jpeg', quality);
+            };
+            tryQuality(0.82);
+        };
+        img.onerror = function() {
+            URL.revokeObjectURL(url);
+            reject(new Error('Could not read that photo. Use a JPEG, PNG, or WebP image.'));
+        };
+        img.src = url;
+    });
+}
+
+let detailNicRequest = 0;
+
+function clearDetailNicPhoto() {
+    if (detailNicObjectUrl) {
+        URL.revokeObjectURL(detailNicObjectUrl);
+        detailNicObjectUrl = null;
+    }
+    const img = document.getElementById('detail-nic-photo');
+    if (img) {
+        img.removeAttribute('src');
+        img.hidden = true;
+    }
+}
+
+function revokeDetailNicPhoto() {
+    detailNicRequest += 1;
+    clearDetailNicPhoto();
+}
+
+async function showNicPhotoInDetails(tenant) {
+    const requestId = ++detailNicRequest;
+    const img = document.getElementById('detail-nic-photo');
+    const empty = document.getElementById('detail-nic-empty');
+    clearDetailNicPhoto();
+    if (!img || !empty) {
+        return;
+    }
+    empty.textContent = 'No NIC photograph on file';
+    if (!tenant.nicPhoto || !tenant.nicPhoto.key) {
+        empty.hidden = false;
+        return;
+    }
+    empty.hidden = true;
+    try {
+        const blob = await api.fetchNicPhoto(tenant._id || tenant.id);
+        if (requestId !== detailNicRequest) {
+            return;
+        }
+        if (!blob) {
+            empty.hidden = false;
+            return;
+        }
+        detailNicObjectUrl = URL.createObjectURL(blob);
+        img.src = detailNicObjectUrl;
+        img.hidden = false;
+    } catch (error) {
+        if (requestId !== detailNicRequest) {
+            return;
+        }
+        console.error('Could not load NIC photograph:', error);
+        empty.textContent = 'NIC photograph could not be loaded';
+        empty.hidden = false;
+    }
 }
 
 function showModal(modalId) {
@@ -2287,6 +3210,16 @@ function closeModal(modalId) {
     if (modal) {
         modal.classList.remove('active');
         document.body.style.overflow = 'auto';
+
+        if (modalId === 'tenant-details-modal') {
+            revokeDetailNicPhoto();
+        }
+        if (modalId === 'inventory-details-modal') {
+            revokeDetailInventoryPhoto();
+        }
+        if (modalId === 'maintenance-details-modal') {
+            revokeDetailMaintenancePhoto();
+        }
         
         // Reset form if it's a form modal
         const form = modal.querySelector('form');
@@ -2301,6 +3234,7 @@ function closeModal(modalId) {
                 
                 modalTitle.textContent = 'Add New Tenant';
                 submitButton.textContent = 'Add Tenant';
+                resetNicPhotoField();
             }
             
             // Reset modal title and button text for maintenance modal
@@ -2310,6 +3244,7 @@ function closeModal(modalId) {
                 
                 modalTitle.textContent = 'New Maintenance Request';
                 submitButton.textContent = 'Submit Request';
+                resetRecordPhoto('maintenance');
             }
             
             // Reset modal title and button text for inventory modal
@@ -2319,6 +3254,7 @@ function closeModal(modalId) {
                 
                 modalTitle.textContent = 'Add Inventory Item';
                 submitButton.textContent = 'Add Item';
+                resetRecordPhoto('inventory');
             }
             
             // Reset modal title and button text for apartment modal

@@ -712,21 +712,22 @@ body.authenticated #auth-gate {
 
 .inventory-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
 }
 
-.inventory-item {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    padding: 28px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    transition: all 0.3s ease;
+.inventory-grid .inventory-item {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e8eef2;
+    border-left: 4px solid #00B4D8;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    align-items: stretch;
+    gap: 12px;
+    min-width: 0;
 }
 
 .inventory-item:hover {
@@ -749,12 +750,18 @@ body.authenticated #auth-gate {
     line-height: 1.4;
 }
 
-.inventory-header {
+.inventory-grid .inventory-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: 0;
-    gap: 16px;
+    gap: 12px;
+    min-width: 0;
+}
+
+.inventory-grid .inventory-header h4 {
+    flex: 1;
+    min-width: 0;
 }
 
 .inventory-actions {
@@ -775,17 +782,35 @@ body.authenticated #auth-gate {
     font-size: 0.9rem;
 }
 
-.inventory-details {
+.inventory-grid .inventory-details {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f5;
 }
 
-.inventory-details p {
+.inventory-grid .inventory-details p {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
     margin: 0;
     color: #666;
     font-size: 0.9rem;
     line-height: 1.4;
+}
+
+.inventory-grid .inventory-details strong {
+    flex-shrink: 0;
+    color: #333;
+    font-weight: 600;
+}
+
+.inventory-grid .inventory-details p span {
+    min-width: 0;
+    text-align: right;
+    overflow-wrap: anywhere;
 }
 
 .inventory-details strong {
@@ -1289,6 +1314,64 @@ body.authenticated #auth-gate {
     font-style: italic;
 }
 
+.calculated-field {
+    background: #f4f7f8;
+    color: #333;
+}
+
+.field-hint {
+    margin-top: 6px;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.nic-photo-preview-wrap {
+    margin-top: 12px;
+}
+
+.nic-photo-preview-wrap img,
+.nic-photo {
+    display: block;
+    max-width: 100%;
+    max-height: 280px;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: #fff;
+}
+
+.nic-photo-remove {
+    margin-top: 10px;
+}
+
+.nic-on-file {
+    color: #4AA0BA;
+    margin-left: 6px;
+    font-size: 0.85rem;
+}
+
+.nic-photo-preview-wrap[hidden],
+.nic-photo[hidden],
+.record-photo[hidden],
+#detail-nic-empty[hidden],
+#detail-inventory-photo-empty[hidden],
+#detail-maintenance-photo-empty[hidden] {
+    display: none !important;
+}
+
+.record-photo {
+    display: block;
+    width: 100%;
+    max-height: 180px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin: 8px 0 12px;
+}
+
+.form-group input[type="file"] {
+    padding: 10px 12px;
+}
+
 .tenant-details-modal .modal-actions {
     padding: 20px 30px;
     border-top: 1px solid #e9ecef;
@@ -1569,13 +1652,13 @@ body.authenticated #auth-gate {
     padding: 20px;
 }
 
-/* Inventory List Styles */
+/* Inventory rows inside apartment details */
 .inventory-list {
     display: grid;
     gap: 10px;
 }
 
-.inventory-item {
+.inventory-list .inventory-item {
     background: white;
     padding: 15px;
     border-radius: 6px;
@@ -1616,20 +1699,22 @@ body.authenticated #auth-gate {
     font-size: 0.9rem;
 }
 
-/* Maintenance List Styles */
-.maintenance-list {
+/* Maintenance rows inside apartment details */
+#detail-apartment-maintenance.maintenance-list {
     display: grid;
     gap: 10px;
 }
 
-.maintenance-item {
+#detail-apartment-maintenance .maintenance-item {
     background: white;
     padding: 15px;
     border-radius: 6px;
     border-left: 4px solid #ff9800;
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
+    gap: 15px;
 }
 
 .maintenance-item-info h4 {
