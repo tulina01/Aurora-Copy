@@ -21,7 +21,7 @@ async function connectToDatabase() {
 // Attach the Lambda context (which carries Netlify Identity's decoded user
 // under context.clientContext.user) onto req.context for middleware/requireIdentity.js
 const handleRequest = serverless(app, {
-    binary: ['image/*'],
+    binary: ['image/*', 'application/pdf'],
     request(request, event, context) {
         request.context = context;
     }

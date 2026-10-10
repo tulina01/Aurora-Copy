@@ -750,12 +750,212 @@
                 
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" data-modal="tenant-details-modal">Close</button>
+                    <button type="button" class="btn-secondary" id="print-invoice-btn">
+                        <i class="fas fa-file-invoice"></i>
+                        Print Invoice
+                    </button>
+                    <button type="button" class="btn-secondary" id="print-receipt-btn">
+                        <i class="fas fa-receipt"></i>
+                        Print Receipt
+                    </button>
                     <button type="button" class="btn-primary" id="edit-from-details-btn">
                         <i class="fas fa-edit"></i>
                         Edit Tenant
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Print Invoice / Receipt Modal -->
+    <div id="print-document-modal" class="modal">
+        <div class="modal-content print-document-modal">
+            <div class="modal-header">
+                <h2 id="print-document-title">Print Document</h2>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="print-document-form" class="modal-form">
+                <input type="hidden" id="print-doc-type" value="invoice">
+                <p class="field-hint print-include-hint">Uncheck a field to omit it from the PDF.</p>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="documentDate">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-date">Document date</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="date" id="print-doc-date">
+                    </div>
+                    <div class="form-group print-field" data-print-field="signature">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-signature">Signature</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <select id="print-doc-signature">
+                            <option value="">No signature</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="tenantName">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-tenant-name">Tenant name</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-tenant-name" maxlength="100">
+                    </div>
+                    <div class="form-group print-field" data-print-field="apartmentNumber">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-apartment">Apartment</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-apartment" maxlength="20">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="phone">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-phone">Phone</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-phone" maxlength="20">
+                    </div>
+                    <div class="form-group print-field" data-print-field="email">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-email">Email</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="email" id="print-doc-email" maxlength="100">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="checkinDate">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-checkin">Check-in</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-checkin">
+                    </div>
+                    <div class="form-group print-field" data-print-field="checkoutDate">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-checkout">Check-out</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-checkout">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="rentalBasis">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-rental-basis">Rental basis</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-rental-basis">
+                    </div>
+                    <div class="form-group print-field" data-print-field="currency">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-currency">Currency</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <select id="print-doc-currency">
+                            <option value="USD">USD</option>
+                            <option value="GBP">GBP</option>
+                            <option value="EUR">EUR</option>
+                            <option value="LKR">LKR</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="rentAmount">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-rent-amount">Rent amount</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="number" id="print-doc-rent-amount" min="0" step="0.01">
+                    </div>
+                    <div class="form-group print-field" data-print-field="deposit">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-deposit">Deposit</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="number" id="print-doc-deposit" min="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group print-field" data-print-field="amountPaid">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-amount-paid">Amount paid</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="number" id="print-doc-amount-paid" min="0" step="0.01">
+                    </div>
+                    <div class="form-group print-field print-invoice-only" data-print-field="billingSummary">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-billing-summary">Billing period</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-billing-summary" maxlength="120">
+                    </div>
+                    <div class="form-group print-field print-receipt-only" data-print-field="paymentMethod" hidden>
+                        <div class="print-field-label-row">
+                            <label for="print-doc-payment-method">Payment method</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="text" id="print-doc-payment-method" maxlength="80" placeholder="e.g. Cash, Card, Bank transfer">
+                    </div>
+                </div>
+
+                <div class="form-row print-invoice-only">
+                    <div class="form-group print-field" data-print-field="amountDue">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-amount-due">Amount due</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="number" id="print-doc-amount-due" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-row print-receipt-only" hidden>
+                    <div class="form-group print-field" data-print-field="amountReceived">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-amount-received">Amount received</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="number" id="print-doc-amount-received" min="0" step="0.01">
+                    </div>
+                    <div class="form-group print-field" data-print-field="balanceRemaining">
+                        <div class="print-field-label-row">
+                            <label for="print-doc-balance-remaining">Balance remaining</label>
+                            <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                        </div>
+                        <input type="number" id="print-doc-balance-remaining" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group print-field" data-print-field="notes">
+                    <div class="print-field-label-row">
+                        <label for="print-doc-notes">Notes</label>
+                        <label class="print-include-toggle" title="Include on PDF"><input type="checkbox" class="print-include-checkbox" checked aria-label="Include on PDF"></label>
+                    </div>
+                    <textarea id="print-doc-notes" rows="3" maxlength="500"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" data-modal="print-document-modal">Cancel</button>
+                    <button type="button" class="btn-primary" id="print-document-generate-btn">
+                        <i class="fas fa-file-pdf"></i>
+                        Generate PDF
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

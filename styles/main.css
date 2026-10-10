@@ -1862,3 +1862,62 @@ body.authenticated #auth-gate {
 .signature-replace-input {
     display: none;
 }
+
+.print-document-modal {
+    max-width: 760px;
+}
+
+.print-document-modal .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.print-include-hint {
+    margin: 0 0 16px;
+}
+
+.print-field-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+}
+
+.print-field-label-row > label:first-child {
+    margin-bottom: 0;
+}
+
+.print-include-toggle {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+    cursor: pointer;
+}
+
+.print-include-toggle input {
+    margin: 0;
+    accent-color: #00B4D8;
+}
+
+.print-field.is-omitted {
+    opacity: 0.55;
+}
+
+.print-field.is-omitted input,
+.print-field.is-omitted select,
+.print-field.is-omitted textarea {
+    background: #f1f5f9;
+}
+
+.tenant-details-modal .modal-actions {
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .print-document-modal {
+        max-width: 100%;
+    }
+}

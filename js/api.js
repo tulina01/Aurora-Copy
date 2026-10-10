@@ -9,6 +9,7 @@ class APIService {
             inventory: '/inventory',
             apartments: '/apartments',
             signatures: '/signatures',
+            documents: '/documents',
             health: '/health'
         };
     }
@@ -474,6 +475,41 @@ class APIService {
             uploadedAt: signature.image && signature.image.uploadedAt ? signature.image.uploadedAt : null,
             createdAt: signature.createdAt,
             updatedAt: signature.updatedAt
+        };
+    }
+
+    async downloadDocumentPdf(type, payload) {
+        const endpoint = type === 'receipt' ? '/receipt' : '/invoice';
+        const response = await fetch(`${this.baseURL}${this.endpoints.documents}${endpoint}`, {
+            method: 'POST',
+            headers: await this.authHeaders({
+                'Content-Type': 'application/json'
+            }),
+            body: JSON.stringify(payload)
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok) {
+            let message = `Could not generate ${type} PDF`;
+            if (contentType.includes('application/json')) {
+                try {
+                    const data = await response.json();
+                    if (data.message) {
+                        message = data.message;
+                    }
+                } catch (err) {
+                    // Keep the default message.
+                }
+            }
+            throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        const match = /filename="([^"]+)"/i.exec(disposition);
+        return {
+            blob,
+            filename: match ? match[1] : `${type}.pdf`
         };
     }
 

@@ -12,6 +12,7 @@ const maintenanceRoutes = require('./routes/maintenance');
 const inventoryRoutes = require('./routes/inventory');
 const apartmentRoutes = require('./routes/apartments');
 const signatureRoutes = require('./routes/signatures');
+const documentRoutes = require('./routes/documents');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api/maintenance', requireIdentity, maintenanceRoutes);
 app.use('/api/inventory', requireIdentity, inventoryRoutes);
 app.use('/api/apartments', requireIdentity, apartmentRoutes);
 app.use('/api/signatures', requireIdentity, signatureRoutes);
+app.use('/api/documents', requireIdentity, documentRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

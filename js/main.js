@@ -7,6 +7,7 @@ let apartments = [];
 let signatures = [];
 let signaturePreviewObjectUrl = null;
 const signatureCardObjectUrls = new Map();
+let printDocumentTenant = null;
 
 // DOM elements
 let navLinks, pages, searchInput, statusFilter;
@@ -544,6 +545,18 @@ function setupDynamicEventListeners() {
             closeModal('tenant-details-modal');
             editTenant(tenantId);
         }
+
+        if (e.target.closest('#print-invoice-btn')) {
+            openPrintDocumentModal('invoice');
+        }
+
+        if (e.target.closest('#print-receipt-btn')) {
+            openPrintDocumentModal('receipt');
+        }
+
+        if (e.target.closest('#print-document-generate-btn')) {
+            generatePrintDocument();
+        }
         
         if (e.target.closest('.info-maintenance-btn')) {
             const requestId = e.target.closest('.info-maintenance-btn').getAttribute('data-request-id');
@@ -624,6 +637,10 @@ function setupDynamicEventListeners() {
             if (signatureId && file) {
                 replaceSignatureImage(signatureId, file);
             }
+        }
+
+        if (e.target.classList && e.target.classList.contains('print-include-checkbox')) {
+            syncPrintFieldOmitState(e.target.closest('.print-field'));
         }
     });
 }
@@ -2156,6 +2173,7 @@ async function showTenantDetails(tenantId) {
         const response = await api.getTenant(tenantId);
         if (response.success) {
             const tenant = response.data;
+            printDocumentTenant = tenant;
             
                     // Populate the details modal with tenant data
                     document.getElementById('detail-name').textContent = tenant.name || 'Not provided';
@@ -2194,6 +2212,234 @@ async function showTenantDetails(tenantId) {
     } catch (error) {
         console.error('Error loading tenant details:', error);
         showMessage('Error loading tenant details: ' + error.message, 'error');
+    }
+}
+
+function toInputDate(value) {
+    if (!value) {
+        return '';
+    }
+    const date = value instanceof Date ? value : new Date(value);
+    if (isNaN(date.getTime())) {
+        return '';
+    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function formatDocumentDisplayDate(value) {
+    if (!value) {
+        return '';
+    }
+    return formatDate(value);
+}
+
+function capitalizeLabel(value) {
+    const text = String(value || '').trim();
+    if (!text) {
+        return '';
+    }
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function setPrintDocumentMode(type) {
+    const isReceipt = type === 'receipt';
+    document.getElementById('print-doc-type').value = isReceipt ? 'receipt' : 'invoice';
+    document.getElementById('print-document-title').textContent = isReceipt
+        ? 'Print Receipt'
+        : 'Print Invoice';
+
+    document.querySelectorAll('.print-invoice-only').forEach((el) => {
+        el.hidden = isReceipt;
+    });
+    document.querySelectorAll('.print-receipt-only').forEach((el) => {
+        el.hidden = !isReceipt;
+    });
+}
+
+async function populatePrintSignatureOptions(selectedId) {
+    const select = document.getElementById('print-doc-signature');
+    if (!select) {
+        return;
+    }
+
+    select.innerHTML = '<option value="">No signature</option>';
+
+    try {
+        const response = await api.getSignatures();
+        if (!response.success) {
+            return;
+        }
+        const list = (response.data || [])
+            .map((item) => api.transformSignatureData(item))
+            .filter((item) => item.hasImage);
+
+        list.forEach((signature) => {
+            const option = document.createElement('option');
+            option.value = signature.id;
+            option.textContent = signature.name;
+            select.appendChild(option);
+        });
+
+        if (selectedId && list.some((item) => item.id === selectedId)) {
+            select.value = selectedId;
+        } else if (list.length === 1) {
+            select.value = list[0].id;
+        }
+    } catch (error) {
+        console.error('Could not load signatures for print form:', error);
+    }
+}
+
+function resetPrintIncludeCheckboxes() {
+    document.querySelectorAll('#print-document-form .print-field').forEach((field) => {
+        const checkbox = field.querySelector('.print-include-checkbox');
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+        field.classList.remove('is-omitted');
+        field.querySelectorAll('input:not(.print-include-checkbox), select, textarea').forEach((input) => {
+            input.disabled = false;
+        });
+    });
+}
+
+function syncPrintFieldOmitState(field) {
+    if (!field) {
+        return;
+    }
+    const checkbox = field.querySelector('.print-include-checkbox');
+    const omitted = !(checkbox && checkbox.checked);
+    field.classList.toggle('is-omitted', omitted);
+    field.querySelectorAll('input:not(.print-include-checkbox), select, textarea').forEach((input) => {
+        input.disabled = omitted;
+    });
+}
+
+function readPrintIncludeMap() {
+    const include = {};
+    document.querySelectorAll('#print-document-form .print-field[data-print-field]').forEach((field) => {
+        if (field.hidden) {
+            return;
+        }
+        const key = field.getAttribute('data-print-field');
+        const checkbox = field.querySelector('.print-include-checkbox');
+        if (key) {
+            include[key] = Boolean(checkbox && checkbox.checked);
+        }
+    });
+    return include;
+}
+
+async function openPrintDocumentModal(type) {
+    if (!printDocumentTenant) {
+        showMessage('Open a tenant first, then print an invoice or receipt', 'error');
+        return;
+    }
+
+    const tenant = printDocumentTenant;
+    setPrintDocumentMode(type);
+    resetPrintIncludeCheckboxes();
+
+    document.getElementById('print-doc-date').value = toInputDate(new Date());
+    document.getElementById('print-doc-tenant-name').value = tenant.name || '';
+    document.getElementById('print-doc-apartment').value = tenant.apartmentNumber || '';
+    document.getElementById('print-doc-phone').value = tenant.phone || '';
+    document.getElementById('print-doc-email').value = tenant.email || '';
+    document.getElementById('print-doc-checkin').value = formatDocumentDisplayDate(tenant.checkinDate);
+    document.getElementById('print-doc-checkout').value = tenant.checkoutDate
+        ? formatDocumentDisplayDate(tenant.checkoutDate)
+        : '';
+    document.getElementById('print-doc-rental-basis').value = capitalizeLabel(tenant.rentalBasis);
+    document.getElementById('print-doc-currency').value = tenant.currency || 'USD';
+    document.getElementById('print-doc-rent-amount').value = Number(tenant.rentAmount) || 0;
+    document.getElementById('print-doc-deposit').value = Number(tenant.deposit) || 0;
+    document.getElementById('print-doc-amount-paid').value = Number(tenant.amountPaid) || 0;
+    document.getElementById('print-doc-billing-summary').value = billingSummary(tenant);
+    document.getElementById('print-doc-amount-due').value = Number(calculateAmountDue(tenant)) || 0;
+    document.getElementById('print-doc-amount-received').value = Number(tenant.amountPaid) || 0;
+    document.getElementById('print-doc-balance-remaining').value = Number(calculateAmountDue(tenant)) || 0;
+    document.getElementById('print-doc-payment-method').value = '';
+    document.getElementById('print-doc-notes').value = tenant.remarks || '';
+
+    await populatePrintSignatureOptions();
+    showModal('print-document-modal');
+}
+
+function readPrintDocumentPayload() {
+    const type = document.getElementById('print-doc-type').value === 'receipt' ? 'receipt' : 'invoice';
+    const signatureSelect = document.getElementById('print-doc-signature');
+    const selectedOption = signatureSelect && signatureSelect.selectedOptions
+        ? signatureSelect.selectedOptions[0]
+        : null;
+    const include = readPrintIncludeMap();
+
+    const payload = {
+        documentDate: document.getElementById('print-doc-date').value,
+        tenantName: document.getElementById('print-doc-tenant-name').value.trim(),
+        phone: document.getElementById('print-doc-phone').value.trim(),
+        email: document.getElementById('print-doc-email').value.trim(),
+        apartmentNumber: document.getElementById('print-doc-apartment').value.trim(),
+        checkinDate: document.getElementById('print-doc-checkin').value.trim(),
+        checkoutDate: document.getElementById('print-doc-checkout').value.trim(),
+        rentalBasis: document.getElementById('print-doc-rental-basis').value.trim(),
+        currency: document.getElementById('print-doc-currency').value,
+        rentAmount: Number(document.getElementById('print-doc-rent-amount').value) || 0,
+        deposit: Number(document.getElementById('print-doc-deposit').value) || 0,
+        amountPaid: Number(document.getElementById('print-doc-amount-paid').value) || 0,
+        notes: document.getElementById('print-doc-notes').value.trim(),
+        signatureId: include.signature === false ? '' : (signatureSelect ? signatureSelect.value : ''),
+        signerName: include.signature === false
+            ? ''
+            : (selectedOption && selectedOption.value ? selectedOption.textContent : ''),
+        include
+    };
+
+    if (type === 'receipt') {
+        payload.amountReceived = Number(document.getElementById('print-doc-amount-received').value) || 0;
+        payload.paymentMethod = document.getElementById('print-doc-payment-method').value.trim();
+        payload.balanceRemaining = Number(document.getElementById('print-doc-balance-remaining').value) || 0;
+    } else {
+        payload.billingSummary = document.getElementById('print-doc-billing-summary').value.trim();
+        payload.amountDue = Number(document.getElementById('print-doc-amount-due').value) || 0;
+    }
+
+    return { type, payload };
+}
+
+function downloadBlobFile(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function generatePrintDocument() {
+    const generateBtn = document.getElementById('print-document-generate-btn');
+    const { type, payload } = readPrintDocumentPayload();
+
+    if (generateBtn) {
+        generateBtn.disabled = true;
+    }
+
+    try {
+        const result = await api.downloadDocumentPdf(type, payload);
+        downloadBlobFile(result.blob, result.filename);
+        showMessage(`${capitalizeLabel(type)} PDF downloaded`, 'success');
+        closeModal('print-document-modal');
+    } catch (error) {
+        console.error('Error generating document PDF:', error);
+        showMessage(error.message || `Could not generate ${type} PDF`, 'error');
+    } finally {
+        if (generateBtn) {
+            generateBtn.disabled = false;
+        }
     }
 }
 

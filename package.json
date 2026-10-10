@@ -27,6 +27,7 @@
     "helmet": "^7.0.0",
     "mongoose": "^7.5.0",
     "morgan": "^1.10.0",
+    "pdfkit": "^0.20.2",
     "serverless-http": "^4.0.0"
   },
   "devDependencies": {
