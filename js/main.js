@@ -81,6 +81,16 @@ function setupEventListeners() {
     navLinks.forEach(link => {
         link.addEventListener('click', handleNavigation);
     });
+
+    // Mobile hamburger menu
+    const navToggle = document.querySelector('.nav-toggle');
+    const navMenu = document.querySelector('.nav-menu');
+    if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+            navToggle.classList.toggle('active');
+            navMenu.classList.toggle('active');
+        });
+    }
     
     // Search and filter
     if (searchInput) {
@@ -1216,6 +1226,10 @@ async function handleNavigation(e) {
     // Show target page
     pages.forEach(page => page.classList.remove('active'));
     document.getElementById(targetPage).classList.add('active');
+
+    // Close mobile nav after selecting a page
+    document.querySelector('.nav-toggle')?.classList.remove('active');
+    document.querySelector('.nav-menu')?.classList.remove('active');
     
     // Update page content based on current page
     await updatePageContent(targetPage);
