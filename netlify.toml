@@ -10,11 +10,13 @@
 # on localhost (full node_modules) but fails in the deployed function.
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["pdfkit", "fontkit", "linebreak", "png-js", "jpeg-exif"]
+  external_node_modules = ["pdfkit", "fontkit", "linebreak", "png-js", "jpeg-exif", "@netlify/blobs"]
   included_files = [
     "node_modules/pdfkit/js/data/**",
     "node_modules/fontkit/src/opentype/shapers/**",
-    "images/aurora-logo.png"
+    "node_modules/png-js/**",
+    "images/aurora-logo.png",
+    "images/**"
   ]
 
 [[redirects]]

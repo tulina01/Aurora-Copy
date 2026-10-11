@@ -32,8 +32,13 @@ module.exports.handler = async (event, context) => {
     // instead of waiting for the connection pool to drain on every call.
     context.callbackWaitsForEmptyEventLoop = false;
 
-    if (event && event.blobs) {
+    // Always wire Blobs for this request. Signature images (and other private
+    // files) are read during PDF generation; skipping connectLambda when
+    // event.blobs is missing leaves getStore() unable to load those files.
+    try {
         connectNetlifyBlobs(event);
+    } catch (error) {
+        console.warn('Netlify Blobs connect skipped:', error.message);
     }
 
     await connectToDatabase();
