@@ -38,7 +38,16 @@ const tenantSchema = new mongoose.Schema({
         trim: true,
         lowercase: true,
         maxlength: [100, 'Email cannot exceed 100 characters'],
-        match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+        default: '',
+        validate: {
+            validator(value) {
+                if (!value) {
+                    return true;
+                }
+                return /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(value);
+            },
+            message: 'Please enter a valid email'
+        }
     },
     occupation: {
         type: String,

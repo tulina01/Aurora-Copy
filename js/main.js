@@ -1400,7 +1400,6 @@ async function handleAddTenant(e) {
         const requiredFields = {
             name: 'Full Name',
             phone: 'Phone Number',
-            email: 'Email',
             apartmentNumber: 'Apartment Number',
             checkinDate: 'Check-in Date',
             rentalBasis: 'Rental Basis',
@@ -3463,11 +3462,10 @@ function validateField(field) {
     }
     
     // Required field validation
-    const requiredFields = ['tenant-name', 'tenant-phone', 'tenant-email', 'tenant-apartment-number', 'checkin-date', 'rental-basis', 'currency', 'rent-amount'];
+    const requiredFields = ['tenant-name', 'tenant-phone', 'tenant-apartment-number', 'checkin-date', 'rental-basis', 'currency', 'rent-amount'];
     const fieldNames = {
         'tenant-name': 'Full Name',
         'tenant-phone': 'Phone Number',
-        'tenant-email': 'Email',
         'tenant-apartment-number': 'Apartment Number',
         'checkin-date': 'Check-in Date',
         'rental-basis': 'Rental Basis',
