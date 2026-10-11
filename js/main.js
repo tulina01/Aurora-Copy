@@ -395,7 +395,7 @@ function setupEventListeners() {
     // Add buttons
     const addTenantBtn = document.getElementById('add-tenant-btn');
     if (addTenantBtn) {
-        addTenantBtn.addEventListener('click', () => {
+        addTenantBtn.addEventListener('click', async () => {
             // Reset modal to add mode
             const modal = document.getElementById('add-tenant-modal');
             const modalTitle = modal.querySelector('.modal-header h2');
@@ -406,6 +406,7 @@ function setupEventListeners() {
             resetNicPhotoField();
             updateRentAmountLabel();
             updateAmountDue();
+            await populateTenantApartmentOptions();
             
             showModal('add-tenant-modal');
         });
@@ -424,7 +425,7 @@ function setupEventListeners() {
     // Dashboard action buttons
     const dashboardAddTenantBtn = document.getElementById('dashboard-add-tenant-btn');
     if (dashboardAddTenantBtn) {
-        dashboardAddTenantBtn.addEventListener('click', () => {
+        dashboardAddTenantBtn.addEventListener('click', async () => {
             // Reset modal to add mode
             const modal = document.getElementById('add-tenant-modal');
             const modalTitle = modal.querySelector('.modal-header h2');
@@ -435,6 +436,7 @@ function setupEventListeners() {
             resetNicPhotoField();
             updateRentAmountLabel();
             updateAmountDue();
+            await populateTenantApartmentOptions();
             
             showModal('add-tenant-modal');
         });
@@ -535,6 +537,11 @@ function setupDynamicEventListeners() {
         if (e.target.closest('.info-tenant-btn')) {
             const tenantId = e.target.closest('.info-tenant-btn').getAttribute('data-tenant-id');
             showTenantDetails(tenantId);
+        }
+
+        if (e.target.closest('.recent-tenant')) {
+            const tenantId = e.target.closest('.recent-tenant').getAttribute('data-tenant-id');
+            openRecentTenant(tenantId);
         }
         
         // Edit tenant button
@@ -1222,23 +1229,32 @@ function loadSampleData() {
 // Navigation handler
 async function handleNavigation(e) {
     e.preventDefault();
-    
-    const targetPage = this.getAttribute('data-page');
-    
-    // Update active navigation link
-    navLinks.forEach(link => link.classList.remove('active'));
-    this.classList.add('active');
-    
-    // Show target page
-    pages.forEach(page => page.classList.remove('active'));
-    document.getElementById(targetPage).classList.add('active');
+    await showPage(this.getAttribute('data-page'));
+}
 
-    // Close mobile nav after selecting a page
+async function showPage(targetPage) {
+    navLinks.forEach(link => {
+        link.classList.toggle('active', link.getAttribute('data-page') === targetPage);
+    });
+
+    pages.forEach(page => page.classList.remove('active'));
+    const page = document.getElementById(targetPage);
+    if (page) {
+        page.classList.add('active');
+    }
+
     document.querySelector('.nav-toggle')?.classList.remove('active');
     document.querySelector('.nav-menu')?.classList.remove('active');
-    
-    // Update page content based on current page
+
     await updatePageContent(targetPage);
+}
+
+async function openRecentTenant(tenantId) {
+    if (!tenantId) {
+        return;
+    }
+    await showPage('tenants');
+    await showTenantDetails(tenantId);
 }
 
 // Update page content
@@ -1302,13 +1318,13 @@ async function updateDashboard() {
                 `;
             } else {
                 recentTenantsContainer.innerHTML = recentTenants.map(tenant => `
-                    <div class="recent-item">
+                    <button type="button" class="recent-item recent-tenant" data-tenant-id="${tenant._id || tenant.id}">
                         <div class="recent-item-avatar">${tenant.name.charAt(0).toUpperCase()}</div>
                         <div class="recent-item-info">
                             <h4>${tenant.name}</h4>
                             <p>Apartment ${tenant.apartmentNumber} • ${formatDate(tenant.checkinDate)}</p>
                         </div>
-                    </div>
+                    </button>
                 `).join('');
             }
         } else {
@@ -1340,13 +1356,13 @@ async function updateDashboard() {
             `;
         } else {
             recentTenantsContainer.innerHTML = recentLocal.map(tenant => `
-                <div class="recent-item">
+                <button type="button" class="recent-item recent-tenant" data-tenant-id="${tenant._id || tenant.id}">
                     <div class="recent-item-avatar">${tenant.name.charAt(0).toUpperCase()}</div>
                     <div class="recent-item-info">
                         <h4>${tenant.name}</h4>
                         <p>Apartment ${tenant.apartmentNumber} • ${formatDate(tenant.checkinDate)}</p>
                     </div>
-                </div>
+                </button>
             `).join('');
         }
     } finally {
@@ -2206,7 +2222,8 @@ async function editTenant(tenantId) {
             document.getElementById('tenant-name').value = tenant.name;
             document.getElementById('tenant-phone').value = tenant.phone;
             document.getElementById('tenant-email').value = tenant.email || '';
-            document.getElementById('tenant-apartment-number').value = tenant.apartmentNumber;
+            await populateTenantApartmentOptions(tenant.apartmentNumber);
+            document.getElementById('tenant-apartment-number').value = tenant.apartmentNumber || '';
             document.getElementById('checkin-date').value = tenant.checkinDate.split('T')[0];
             document.getElementById('checkout-date').value = tenant.checkoutDate ? tenant.checkoutDate.split('T')[0] : '';
             document.getElementById('rental-basis').value = tenant.rentalBasis;
@@ -3059,6 +3076,42 @@ async function loadApartmentsFromAPI() {
     } catch (error) {
         console.error('❌ Error loading apartments from API:', error);
     }
+}
+
+async function populateTenantApartmentOptions(selectedValue) {
+    const select = document.getElementById('tenant-apartment-number');
+    if (!select) {
+        return;
+    }
+    if (!apartments.length) {
+        await loadApartmentsFromAPI();
+    }
+
+    const selected = selectedValue == null ? '' : String(selectedValue);
+    const numbers = [...new Set(
+        apartments
+            .map((apartment) => String(apartment.number || '').trim())
+            .filter(Boolean)
+    )];
+    if (selected && !numbers.includes(selected)) {
+        numbers.push(selected);
+    }
+    numbers.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    select.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = numbers.length ? 'Select apartment' : 'No apartments added yet';
+    select.appendChild(placeholder);
+
+    numbers.forEach((number) => {
+        const option = document.createElement('option');
+        option.value = number;
+        option.textContent = number;
+        select.appendChild(option);
+    });
+
+    select.value = selected && numbers.includes(selected) ? selected : '';
 }
 
 // Apartment CRUD functions

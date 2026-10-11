@@ -353,12 +353,18 @@ body.authenticated #auth-gate {
     display: flex;
     align-items: center;
     gap: 15px;
+    width: 100%;
     padding: 16px;
     background: #ffffff;
     border-radius: 8px;
+    border: none;
     border-left: 4px solid #00B4D8;
     transition: all 0.3s ease;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .recent-item:hover {
