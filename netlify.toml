@@ -5,6 +5,18 @@
 [build.environment]
   NODE_VERSION = "22"
 
+# PDFKit loads Helvetica AFM / ICC files from disk at runtime. Netlify's default
+# bundle tracing often omits those assets, so invoice/receipt generation works
+# on localhost (full node_modules) but fails in the deployed function.
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["pdfkit", "fontkit", "linebreak", "png-js", "jpeg-exif"]
+  included_files = [
+    "node_modules/pdfkit/js/data/**",
+    "node_modules/fontkit/src/opentype/shapers/**",
+    "images/aurora-logo.png"
+  ]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
