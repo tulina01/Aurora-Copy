@@ -1,5 +1,24 @@
 const mongoose = require('mongoose');
 
+const inventoryPhotoEntrySchema = new mongoose.Schema({
+    photoId: {
+        type: String,
+        required: true
+    },
+    key: {
+        type: String,
+        required: true
+    },
+    contentType: {
+        type: String,
+        default: ''
+    },
+    uploadedAt: {
+        type: Date,
+        default: null
+    }
+}, { _id: false });
+
 const inventorySchema = new mongoose.Schema({
     apartmentNumber: {
         type: String,
@@ -66,6 +85,7 @@ const inventorySchema = new mongoose.Schema({
         maxlength: [1000, 'Notes cannot exceed 1000 characters'],
         default: ''
     },
+    // Legacy single-photo field; kept so existing records still load.
     photo: {
         key: {
             type: String,
@@ -78,6 +98,16 @@ const inventorySchema = new mongoose.Schema({
         uploadedAt: {
             type: Date,
             default: null
+        }
+    },
+    photos: {
+        type: [inventoryPhotoEntrySchema],
+        default: [],
+        validate: {
+            validator(value) {
+                return !Array.isArray(value) || value.length <= 5;
+            },
+            message: 'An inventory item can have at most 5 photographs'
         }
     },
     status: {

@@ -488,12 +488,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="tenant-nic-photo">NIC Photograph</label>
-                    <input type="file" id="tenant-nic-photo" accept="image/jpeg,image/png,image/webp">
-                    <p class="field-hint">Optional. JPEG, PNG, or WebP. The photo is stored privately and is only visible after login.</p>
+                    <label for="tenant-nic-photo">NIC Photographs</label>
+                    <input type="file" id="tenant-nic-photo" accept="image/jpeg,image/png,image/webp" multiple>
+                    <p class="field-hint">Optional. Up to 5 images (JPEG, PNG, or WebP). Stored privately and only visible after login.</p>
                     <div id="nic-photo-preview-wrap" class="nic-photo-preview-wrap" hidden>
-                        <img id="nic-photo-preview" alt="NIC photograph preview">
-                        <button type="button" id="nic-photo-remove-btn" class="btn-secondary nic-photo-remove">Remove photo</button>
+                        <div id="nic-photo-preview-list" class="nic-photo-preview-list"></div>
                     </div>
                 </div>
                 
@@ -754,8 +753,8 @@
                     </div>
 
                     <div class="detail-section full-width">
-                        <h3><i class="fas fa-id-card"></i> NIC Photograph</h3>
-                        <img id="detail-nic-photo" class="nic-photo" alt="NIC photograph" hidden>
+                        <h3><i class="fas fa-id-card"></i> NIC Photographs</h3>
+                        <div id="detail-nic-photos" class="nic-photo-preview-list"></div>
                         <p id="detail-nic-empty" class="no-data">No NIC photograph on file</p>
                     </div>
                 </div>
@@ -1013,8 +1012,8 @@
                         </div>
                     </div>
                     <div class="detail-section full-width">
-                        <h3><i class="fas fa-image"></i> Photograph</h3>
-                        <img id="detail-inventory-photo" class="nic-photo" alt="Inventory photograph" hidden>
+                        <h3><i class="fas fa-image"></i> Photographs</h3>
+                        <div id="detail-inventory-photos" class="nic-photo-preview-list"></div>
                         <p id="detail-inventory-photo-empty" class="no-data">No photograph on file</p>
                     </div>
                 </div>
@@ -1215,12 +1214,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="inventory-photo">Photograph</label>
-                    <input type="file" id="inventory-photo" accept="image/jpeg,image/png,image/webp">
-                    <p class="field-hint">Optional. JPEG, PNG, or WebP. The photo is stored privately and is only visible after login.</p>
+                    <label for="inventory-photo">Photographs</label>
+                    <input type="file" id="inventory-photo" accept="image/jpeg,image/png,image/webp" multiple>
+                    <p class="field-hint">Optional. Up to 5 images (JPEG, PNG, or WebP). Stored privately and only visible after login.</p>
                     <div id="inventory-photo-preview-wrap" class="nic-photo-preview-wrap" hidden>
-                        <img id="inventory-photo-preview" alt="Inventory photograph preview">
-                        <button type="button" id="inventory-photo-remove-btn" class="btn-secondary nic-photo-remove">Remove photo</button>
+                        <div id="inventory-photo-preview-list" class="nic-photo-preview-list"></div>
                     </div>
                 </div>
                 

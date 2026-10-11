@@ -95,6 +95,7 @@ router.post('/', async (req, res) => {
         
         const inventoryData = req.body;
         delete inventoryData.photo;
+        delete inventoryData.photos;
         const inventory = new Inventory(inventoryData);
         console.log('💾 Saving inventory item to database...');
         await inventory.save();
@@ -130,6 +131,7 @@ router.put('/:id', async (req, res) => {
     try {
         const inventoryData = req.body;
         delete inventoryData.photo;
+        delete inventoryData.photos;
         const inventory = await Inventory.findByIdAndUpdate(
             req.params.id,
             inventoryData,
@@ -469,7 +471,8 @@ router.post('/bulk-update', async (req, res) => {
 attachPhotoRoutes(router, {
     Model: Inventory,
     keyFor: inventoryPhotoKey,
-    kind: 'inventory'
+    kind: 'inventory',
+    maxPhotos: 5
 });
 
 module.exports = router;

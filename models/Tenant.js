@@ -1,6 +1,25 @@
 const mongoose = require('mongoose');
 const { calculateTenantAmountDue } = require('../lib/tenantBilling');
 
+const nicPhotoEntrySchema = new mongoose.Schema({
+    photoId: {
+        type: String,
+        required: true
+    },
+    key: {
+        type: String,
+        required: true
+    },
+    contentType: {
+        type: String,
+        default: ''
+    },
+    uploadedAt: {
+        type: Date,
+        default: null
+    }
+}, { _id: false });
+
 const tenantSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -125,6 +144,7 @@ const tenantSchema = new mongoose.Schema({
         enum: ['verified', 'pending', 'not-verified'],
         default: 'pending'
     },
+    // Legacy single-photo field; kept so existing records still load.
     nicPhoto: {
         key: {
             type: String,
@@ -137,6 +157,16 @@ const tenantSchema = new mongoose.Schema({
         uploadedAt: {
             type: Date,
             default: null
+        }
+    },
+    nicPhotos: {
+        type: [nicPhotoEntrySchema],
+        default: [],
+        validate: {
+            validator(value) {
+                return !Array.isArray(value) || value.length <= 5;
+            },
+            message: 'A tenant can have at most 5 NIC photographs'
         }
     },
     currentRentalPeriod: {

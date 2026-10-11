@@ -167,26 +167,16 @@ function setupEventListeners() {
             if (e.target.id !== 'tenant-nic-photo') {
                 return;
             }
-            const file = e.target.files && e.target.files[0];
-            freshForm.removeAttribute('data-remove-nic');
-            if (!file) {
-                return;
-            }
-            const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-            if (!allowed.includes(file.type)) {
-                e.target.value = '';
-                showFieldError(e.target, 'NIC photograph must be a JPEG, PNG, or WebP image');
-                return;
-            }
-            showNicPreview(file);
+            handleNicPhotoSelection(e.target);
         });
 
         freshForm.addEventListener('click', function(e) {
-            if (!e.target.closest('#nic-photo-remove-btn')) {
+            const removeBtn = e.target.closest('[data-nic-remove]');
+            if (!removeBtn) {
                 return;
             }
             e.preventDefault();
-            handleRemoveNicPhoto();
+            handleRemoveNicPhoto(removeBtn.getAttribute('data-nic-remove'), removeBtn.getAttribute('data-nic-kind'));
         });
     } else {
         console.error('❌ Add tenant form not found!');
@@ -281,7 +271,23 @@ function setupEventListeners() {
         } else {
             console.error('❌ Inventory submit button not found!');
         }
-        bindRecordPhotoField(freshInventoryForm, 'inventory');
+        freshInventoryForm.addEventListener('change', function(e) {
+            if (e.target.id !== 'inventory-photo') {
+                return;
+            }
+            handleInventoryPhotoSelection(e.target);
+        });
+        freshInventoryForm.addEventListener('click', function(e) {
+            const removeBtn = e.target.closest('[data-inventory-remove]');
+            if (!removeBtn) {
+                return;
+            }
+            e.preventDefault();
+            handleRemoveInventoryPhoto(
+                removeBtn.getAttribute('data-inventory-remove'),
+                removeBtn.getAttribute('data-inventory-kind')
+            );
+        });
     } else {
         console.error('❌ Inventory form not found!');
     }
@@ -1452,11 +1458,12 @@ async function handleAddTenant(e) {
         }
 
         const nicInput = document.getElementById('tenant-nic-photo');
-        const nicFile = nicInput && nicInput.files && nicInput.files[0];
-        let nicBlob = null;
-        if (nicFile) {
+        let nicBlobs = [];
+        if (nicPhotoState.pending.length > 0) {
             try {
-                nicBlob = await compressNicPhoto(nicFile);
+                for (const item of nicPhotoState.pending) {
+                    nicBlobs.push(await compressNicPhoto(item.file));
+                }
             } catch (photoError) {
                 showFieldError(nicInput, photoError.message);
                 showGeneralFormError(photoError.message);
@@ -1523,22 +1530,22 @@ async function handleAddTenant(e) {
         if (response.success) {
             console.log('✅ Tenant saved successfully');
             const savedId = editId || (response.data && (response.data._id || response.data.id));
-            const tenantForm = document.getElementById('add-tenant-form');
-            const removeNic = tenantForm && tenantForm.getAttribute('data-remove-nic') === 'true';
-            const hadNic = tenantForm && tenantForm.getAttribute('data-has-nic') === 'true';
             let photoWarning = '';
 
             try {
-                if (savedId && nicBlob) {
-                    await api.uploadNicPhoto(savedId, nicBlob);
-                } else if (savedId && removeNic && hadNic) {
-                    await api.deleteNicPhoto(savedId);
+                if (savedId) {
+                    for (const photoId of removedNicPhotoIds) {
+                        await api.deleteNicPhoto(savedId, photoId);
+                    }
+                    for (const blob of nicBlobs) {
+                        await api.uploadNicPhoto(savedId, blob);
+                    }
                 }
             } catch (photoError) {
                 console.error('❌ NIC photograph was not saved:', photoError);
-                photoWarning = nicBlob
-                    ? ' The tenant was saved, but the NIC photograph could not be uploaded. Edit the tenant and try the photo again.'
-                    : ' The tenant was saved, but the NIC photograph could not be removed.';
+                photoWarning = nicBlobs.length > 0
+                    ? ' The tenant was saved, but one or more NIC photographs could not be uploaded. Edit the tenant and try the photos again.'
+                    : ' The tenant was saved, but one or more NIC photographs could not be removed.';
             }
 
             showMessage(
@@ -1719,12 +1726,17 @@ async function handleAddInventory(e) {
         
         console.log('📋 Inventory data:', inventoryData);
 
-        let photoBlob = null;
-        try {
-            photoBlob = await prepareRecordPhoto('inventory');
-        } catch (photoError) {
-            showFieldError(document.getElementById('inventory-photo'), photoError.message);
-            return;
+        const inventoryPhotoInput = document.getElementById('inventory-photo');
+        let inventoryBlobs = [];
+        if (inventoryPhotoState.pending.length > 0) {
+            try {
+                for (const item of inventoryPhotoState.pending) {
+                    inventoryBlobs.push(await compressNicPhoto(item.file, 'Photograph'));
+                }
+            } catch (photoError) {
+                showFieldError(inventoryPhotoInput, photoError.message);
+                return;
+            }
         }
         
         // Check if this is an edit operation
@@ -1751,7 +1763,22 @@ async function handleAddInventory(e) {
         
         if (response.success) {
             const savedId = editId || (response.data && (response.data._id || response.data.id));
-            const photoWarning = await commitRecordPhoto('inventory', savedId, photoBlob);
+            let photoWarning = '';
+            try {
+                if (savedId) {
+                    for (const photoId of removedInventoryPhotoIds) {
+                        await api.deleteRecordPhoto('inventory', savedId, photoId);
+                    }
+                    for (const blob of inventoryBlobs) {
+                        await api.uploadRecordPhoto('inventory', savedId, blob);
+                    }
+                }
+            } catch (photoError) {
+                console.error('Photograph was not saved:', photoError);
+                photoWarning = inventoryBlobs.length > 0
+                    ? ' The item was saved, but one or more photographs could not be uploaded. Edit it and try the photos again.'
+                    : ' The item was saved, but one or more photographs could not be removed.';
+            }
             showMessage(
                 (editId ? 'Inventory item updated successfully!' : 'Inventory item added successfully!') + photoWarning,
                 photoWarning ? 'error' : 'success'
@@ -2204,10 +2231,7 @@ async function editTenant(tenantId) {
             // Store the tenant ID for update
             const tenantForm = document.getElementById('add-tenant-form');
             tenantForm.setAttribute('data-edit-id', tenantId);
-            if (tenant.nicPhoto && tenant.nicPhoto.key) {
-                tenantForm.setAttribute('data-has-nic', 'true');
-                loadExistingNicPreview(tenantId);
-            }
+            loadExistingNicPreviews(tenantId, tenant);
             
             // Update modal title and button text for edit mode
             const modal = document.getElementById('add-tenant-modal');
@@ -2699,17 +2723,14 @@ function inventoryLabel(value) {
 }
 
 let detailInventoryRequest = 0;
-let detailInventoryObjectUrl = null;
+let detailInventoryObjectUrls = [];
 
 function clearDetailInventoryPhoto() {
-    if (detailInventoryObjectUrl) {
-        URL.revokeObjectURL(detailInventoryObjectUrl);
-        detailInventoryObjectUrl = null;
-    }
-    const img = document.getElementById('detail-inventory-photo');
-    if (img) {
-        img.removeAttribute('src');
-        img.hidden = true;
+    detailInventoryObjectUrls.forEach((url) => revokeNicObjectUrl(url));
+    detailInventoryObjectUrls = [];
+    const list = document.getElementById('detail-inventory-photos');
+    if (list) {
+        list.innerHTML = '';
     }
 }
 
@@ -2720,36 +2741,54 @@ function revokeDetailInventoryPhoto() {
 
 async function showInventoryPhotoInDetails(item) {
     const requestId = ++detailInventoryRequest;
-    const img = document.getElementById('detail-inventory-photo');
+    const list = document.getElementById('detail-inventory-photos');
     const empty = document.getElementById('detail-inventory-photo-empty');
     clearDetailInventoryPhoto();
-    if (!img || !empty) {
+    if (!list || !empty) {
         return;
     }
+
     empty.textContent = 'No photograph on file';
-    if (!item.photo || !item.photo.key) {
+    const photos = inventoryPhotoMeta(item);
+    if (photos.length === 0) {
         empty.hidden = false;
         return;
     }
+
     empty.hidden = true;
     try {
-        const blob = await api.fetchRecordPhoto('inventory', item._id || item.id);
+        const itemId = item._id || item.id;
+        for (const photo of photos) {
+            const blob = await api.fetchRecordPhoto('inventory', itemId, photo.id);
+            if (requestId !== detailInventoryRequest) {
+                return;
+            }
+            if (!blob) {
+                continue;
+            }
+            const objectUrl = URL.createObjectURL(blob);
+            detailInventoryObjectUrls.push(objectUrl);
+            const card = document.createElement('div');
+            card.className = 'nic-photo-preview-item';
+            const img = document.createElement('img');
+            img.className = 'nic-photo';
+            img.alt = 'Inventory photograph';
+            img.src = objectUrl;
+            card.appendChild(img);
+            list.appendChild(card);
+        }
         if (requestId !== detailInventoryRequest) {
             return;
         }
-        if (!blob) {
+        if (detailInventoryObjectUrls.length === 0) {
             empty.hidden = false;
-            return;
         }
-        detailInventoryObjectUrl = URL.createObjectURL(blob);
-        img.src = detailInventoryObjectUrl;
-        img.hidden = false;
     } catch (error) {
         if (requestId !== detailInventoryRequest) {
             return;
         }
-        console.error('Could not load inventory photograph:', error);
-        empty.textContent = 'Photograph could not be loaded';
+        console.error('Could not load inventory photographs:', error);
+        empty.textContent = 'Photographs could not be loaded';
         empty.hidden = false;
     }
 }
@@ -2791,15 +2830,12 @@ async function editInventory(itemId) {
             document.getElementById('item-count').value = item.count;
             document.getElementById('item-notes').value = item.notes || '';
             document.getElementById('item-cost').value = Number.isFinite(Number(item.purchasePrice)) ? item.purchasePrice : '';
-            resetRecordPhoto('inventory');
+            resetInventoryPhotoField();
             
             // Store the item ID for update
             const inventoryForm = document.getElementById('inventory-form');
             inventoryForm.setAttribute('data-edit-id', itemId);
-            if (item.photo && item.photo.key) {
-                inventoryForm.setAttribute('data-has-photo', 'true');
-                loadRecordPhoto('inventory', itemId);
-            }
+            loadExistingInventoryPreviews(itemId, item);
             
             // Update modal title and button text for edit mode
             const modal = document.getElementById('inventory-modal');
@@ -3478,90 +3514,392 @@ function validateField(field) {
     return true;
 }
 
-let nicPhotoObjectUrl = null;
-let detailNicObjectUrl = null;
+const MAX_NIC_PHOTOS = 5;
+let nicPhotoState = {
+    existing: [],
+    pending: []
+};
+let removedNicPhotoIds = [];
+let detailNicObjectUrls = [];
 let nicPreviewRequest = 0;
+let nicPendingIdCounter = 0;
+
+function tenantNicPhotoMeta(tenant) {
+    if (Array.isArray(tenant.nicPhotos) && tenant.nicPhotos.some((photo) => photo && photo.key)) {
+        return tenant.nicPhotos
+            .filter((photo) => photo && photo.key)
+            .map((photo) => ({
+                id: photo.photoId || photo.id || 'legacy',
+                key: photo.key
+            }));
+    }
+    if (tenant.nicPhoto && tenant.nicPhoto.key) {
+        return [{ id: 'legacy', key: tenant.nicPhoto.key }];
+    }
+    return [];
+}
+
+function nicPhotoTotalCount() {
+    return nicPhotoState.existing.length + nicPhotoState.pending.length;
+}
+
+function revokeNicObjectUrl(url) {
+    if (url) {
+        URL.revokeObjectURL(url);
+    }
+}
 
 function resetNicPhotoField() {
     nicPreviewRequest += 1;
-    const form = document.getElementById('add-tenant-form');
     const input = document.getElementById('tenant-nic-photo');
     if (input) {
         input.value = '';
     }
-    if (form) {
-        form.removeAttribute('data-remove-nic');
-        form.removeAttribute('data-has-nic');
-    }
-    hideNicPreview();
+    nicPhotoState.existing.forEach((item) => revokeNicObjectUrl(item.objectUrl));
+    nicPhotoState.pending.forEach((item) => revokeNicObjectUrl(item.objectUrl));
+    nicPhotoState = { existing: [], pending: [] };
+    removedNicPhotoIds = [];
+    renderNicPhotoPreviews();
 }
 
-function hideNicPreview() {
-    if (nicPhotoObjectUrl) {
-        URL.revokeObjectURL(nicPhotoObjectUrl);
-        nicPhotoObjectUrl = null;
-    }
-    const img = document.getElementById('nic-photo-preview');
+function renderNicPhotoPreviews() {
     const wrap = document.getElementById('nic-photo-preview-wrap');
-    if (img) {
-        img.removeAttribute('src');
-    }
-    if (wrap) {
-        wrap.hidden = true;
-    }
-}
-
-function showNicPreview(source) {
-    const img = document.getElementById('nic-photo-preview');
-    const wrap = document.getElementById('nic-photo-preview-wrap');
-    if (!img || !wrap) {
+    const list = document.getElementById('nic-photo-preview-list');
+    if (!wrap || !list) {
         return;
     }
-    if (nicPhotoObjectUrl) {
-        URL.revokeObjectURL(nicPhotoObjectUrl);
-        nicPhotoObjectUrl = null;
+
+    list.innerHTML = '';
+    const items = [
+        ...nicPhotoState.existing.map((item) => ({ ...item, kind: 'existing' })),
+        ...nicPhotoState.pending.map((item) => ({ ...item, kind: 'pending' }))
+    ];
+
+    if (items.length === 0) {
+        wrap.hidden = true;
+        return;
     }
-    if (source instanceof Blob) {
-        nicPhotoObjectUrl = URL.createObjectURL(source);
-        img.src = nicPhotoObjectUrl;
-    } else {
-        img.src = source;
-    }
+
+    items.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'nic-photo-preview-item';
+
+        const img = document.createElement('img');
+        img.alt = 'NIC photograph preview';
+        img.src = item.objectUrl || '';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn-secondary nic-photo-remove';
+        removeBtn.textContent = 'Remove';
+        removeBtn.setAttribute('data-nic-remove', item.id);
+        removeBtn.setAttribute('data-nic-kind', item.kind);
+
+        card.appendChild(img);
+        card.appendChild(removeBtn);
+        list.appendChild(card);
+    });
+
     wrap.hidden = false;
 }
 
-async function loadExistingNicPreview(tenantId) {
+function handleNicPhotoSelection(input) {
+    const files = Array.from(input.files || []);
+    input.value = '';
+    if (files.length === 0) {
+        return;
+    }
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    const room = MAX_NIC_PHOTOS - nicPhotoTotalCount();
+    if (room <= 0) {
+        showFieldError(input, `You can upload at most ${MAX_NIC_PHOTOS} NIC photographs`);
+        showGeneralFormError(`You can upload at most ${MAX_NIC_PHOTOS} NIC photographs`);
+        return;
+    }
+
+    const accepted = [];
+    for (const file of files) {
+        if (!allowed.includes(file.type)) {
+            showFieldError(input, 'NIC photographs must be JPEG, PNG, or WebP images');
+            continue;
+        }
+        accepted.push(file);
+        if (accepted.length >= room) {
+            break;
+        }
+    }
+
+    if (accepted.length === 0) {
+        return;
+    }
+
+    if (files.length > room) {
+        showMessage(`Only ${room} more photo${room === 1 ? '' : 's'} can be added (maximum ${MAX_NIC_PHOTOS}).`, 'error');
+    }
+
+    for (const file of accepted) {
+        nicPendingIdCounter += 1;
+        nicPhotoState.pending.push({
+            id: `pending-${nicPendingIdCounter}`,
+            file,
+            objectUrl: URL.createObjectURL(file)
+        });
+    }
+
+    renderNicPhotoPreviews();
+}
+
+async function loadExistingNicPreviews(tenantId, tenant) {
     const requestId = ++nicPreviewRequest;
+    const photos = tenantNicPhotoMeta(tenant);
+    if (photos.length === 0) {
+        return;
+    }
+
     try {
-        const blob = await api.fetchNicPhoto(tenantId);
-        if (requestId !== nicPreviewRequest || !blob) {
+        const loaded = [];
+        for (const photo of photos) {
+            const blob = await api.fetchNicPhoto(tenantId, photo.id);
+            if (requestId !== nicPreviewRequest) {
+                loaded.forEach((item) => revokeNicObjectUrl(item.objectUrl));
+                return;
+            }
+            if (!blob) {
+                continue;
+            }
+            loaded.push({
+                id: photo.id,
+                objectUrl: URL.createObjectURL(blob)
+            });
+        }
+        if (requestId !== nicPreviewRequest) {
+            loaded.forEach((item) => revokeNicObjectUrl(item.objectUrl));
             return;
         }
-        showNicPreview(blob);
+        nicPhotoState.existing.forEach((item) => revokeNicObjectUrl(item.objectUrl));
+        nicPhotoState.existing = loaded;
+        renderNicPhotoPreviews();
     } catch (error) {
-        console.error('Could not preview NIC photograph:', error);
+        console.error('Could not preview NIC photographs:', error);
     }
 }
 
-async function handleRemoveNicPhoto() {
-    const form = document.getElementById('add-tenant-form');
-    const input = document.getElementById('tenant-nic-photo');
-    const hadNewFile = input && input.files && input.files.length > 0;
+function handleRemoveNicPhoto(id, kind) {
+    if (!id) {
+        return;
+    }
+
+    if (kind === 'existing') {
+        const index = nicPhotoState.existing.findIndex((item) => item.id === id);
+        if (index === -1) {
+            return;
+        }
+        const [removed] = nicPhotoState.existing.splice(index, 1);
+        revokeNicObjectUrl(removed.objectUrl);
+        if (!removedNicPhotoIds.includes(removed.id)) {
+            removedNicPhotoIds.push(removed.id);
+        }
+    } else {
+        const index = nicPhotoState.pending.findIndex((item) => item.id === id);
+        if (index === -1) {
+            return;
+        }
+        const [removed] = nicPhotoState.pending.splice(index, 1);
+        revokeNicObjectUrl(removed.objectUrl);
+    }
+
+    renderNicPhotoPreviews();
+}
+
+const MAX_INVENTORY_PHOTOS = 5;
+let inventoryPhotoState = {
+    existing: [],
+    pending: []
+};
+let removedInventoryPhotoIds = [];
+let inventoryPreviewRequest = 0;
+let inventoryPendingIdCounter = 0;
+
+function inventoryPhotoMeta(item) {
+    if (Array.isArray(item.photos) && item.photos.some((photo) => photo && photo.key)) {
+        return item.photos
+            .filter((photo) => photo && photo.key)
+            .map((photo) => ({
+                id: photo.photoId || photo.id || 'legacy',
+                key: photo.key
+            }));
+    }
+    if (item.photo && item.photo.key) {
+        return [{ id: 'legacy', key: item.photo.key }];
+    }
+    return [];
+}
+
+function inventoryPhotoTotalCount() {
+    return inventoryPhotoState.existing.length + inventoryPhotoState.pending.length;
+}
+
+function resetInventoryPhotoField() {
+    inventoryPreviewRequest += 1;
+    const input = document.getElementById('inventory-photo');
     if (input) {
         input.value = '';
     }
-    if (hadNewFile && form && form.getAttribute('data-has-nic') === 'true' && form.getAttribute('data-remove-nic') !== 'true') {
-        hideNicPreview();
-        const tenantId = form.getAttribute('data-edit-id');
-        if (tenantId) {
-            loadExistingNicPreview(tenantId);
-        }
+    inventoryPhotoState.existing.forEach((item) => revokeNicObjectUrl(item.objectUrl));
+    inventoryPhotoState.pending.forEach((item) => revokeNicObjectUrl(item.objectUrl));
+    inventoryPhotoState = { existing: [], pending: [] };
+    removedInventoryPhotoIds = [];
+    renderInventoryPhotoPreviews();
+}
+
+function renderInventoryPhotoPreviews() {
+    const wrap = document.getElementById('inventory-photo-preview-wrap');
+    const list = document.getElementById('inventory-photo-preview-list');
+    if (!wrap || !list) {
         return;
     }
-    if (form) {
-        form.setAttribute('data-remove-nic', 'true');
+
+    list.innerHTML = '';
+    const items = [
+        ...inventoryPhotoState.existing.map((item) => ({ ...item, kind: 'existing' })),
+        ...inventoryPhotoState.pending.map((item) => ({ ...item, kind: 'pending' }))
+    ];
+
+    if (items.length === 0) {
+        wrap.hidden = true;
+        return;
     }
-    hideNicPreview();
+
+    items.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'nic-photo-preview-item';
+
+        const img = document.createElement('img');
+        img.alt = 'Inventory photograph preview';
+        img.src = item.objectUrl || '';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn-secondary nic-photo-remove';
+        removeBtn.textContent = 'Remove';
+        removeBtn.setAttribute('data-inventory-remove', item.id);
+        removeBtn.setAttribute('data-inventory-kind', item.kind);
+
+        card.appendChild(img);
+        card.appendChild(removeBtn);
+        list.appendChild(card);
+    });
+
+    wrap.hidden = false;
+}
+
+function handleInventoryPhotoSelection(input) {
+    const files = Array.from(input.files || []);
+    input.value = '';
+    if (files.length === 0) {
+        return;
+    }
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    const room = MAX_INVENTORY_PHOTOS - inventoryPhotoTotalCount();
+    if (room <= 0) {
+        showFieldError(input, `You can upload at most ${MAX_INVENTORY_PHOTOS} photographs`);
+        return;
+    }
+
+    const accepted = [];
+    for (const file of files) {
+        if (!allowed.includes(file.type)) {
+            showFieldError(input, 'Photographs must be JPEG, PNG, or WebP images');
+            continue;
+        }
+        accepted.push(file);
+        if (accepted.length >= room) {
+            break;
+        }
+    }
+
+    if (accepted.length === 0) {
+        return;
+    }
+
+    if (files.length > room) {
+        showMessage(`Only ${room} more photo${room === 1 ? '' : 's'} can be added (maximum ${MAX_INVENTORY_PHOTOS}).`, 'error');
+    }
+
+    for (const file of accepted) {
+        inventoryPendingIdCounter += 1;
+        inventoryPhotoState.pending.push({
+            id: `pending-${inventoryPendingIdCounter}`,
+            file,
+            objectUrl: URL.createObjectURL(file)
+        });
+    }
+
+    renderInventoryPhotoPreviews();
+}
+
+async function loadExistingInventoryPreviews(itemId, item) {
+    const requestId = ++inventoryPreviewRequest;
+    const photos = inventoryPhotoMeta(item);
+    if (photos.length === 0) {
+        return;
+    }
+
+    try {
+        const loaded = [];
+        for (const photo of photos) {
+            const blob = await api.fetchRecordPhoto('inventory', itemId, photo.id);
+            if (requestId !== inventoryPreviewRequest) {
+                loaded.forEach((entry) => revokeNicObjectUrl(entry.objectUrl));
+                return;
+            }
+            if (!blob) {
+                continue;
+            }
+            loaded.push({
+                id: photo.id,
+                objectUrl: URL.createObjectURL(blob)
+            });
+        }
+        if (requestId !== inventoryPreviewRequest) {
+            loaded.forEach((entry) => revokeNicObjectUrl(entry.objectUrl));
+            return;
+        }
+        inventoryPhotoState.existing.forEach((entry) => revokeNicObjectUrl(entry.objectUrl));
+        inventoryPhotoState.existing = loaded;
+        renderInventoryPhotoPreviews();
+    } catch (error) {
+        console.error('Could not preview inventory photographs:', error);
+    }
+}
+
+function handleRemoveInventoryPhoto(id, kind) {
+    if (!id) {
+        return;
+    }
+
+    if (kind === 'existing') {
+        const index = inventoryPhotoState.existing.findIndex((item) => item.id === id);
+        if (index === -1) {
+            return;
+        }
+        const [removed] = inventoryPhotoState.existing.splice(index, 1);
+        revokeNicObjectUrl(removed.objectUrl);
+        if (!removedInventoryPhotoIds.includes(removed.id)) {
+            removedInventoryPhotoIds.push(removed.id);
+        }
+    } else {
+        const index = inventoryPhotoState.pending.findIndex((item) => item.id === id);
+        if (index === -1) {
+            return;
+        }
+        const [removed] = inventoryPhotoState.pending.splice(index, 1);
+        revokeNicObjectUrl(removed.objectUrl);
+    }
+
+    renderInventoryPhotoPreviews();
 }
 
 const recordPhotoFields = {
@@ -3571,15 +3909,6 @@ const recordPhotoFields = {
         wrapId: 'maintenance-photo-preview-wrap',
         imgId: 'maintenance-photo-preview',
         removeId: 'maintenance-photo-remove-btn',
-        objectUrl: null,
-        requestId: 0
-    },
-    inventory: {
-        formId: 'inventory-form',
-        inputId: 'inventory-photo',
-        wrapId: 'inventory-photo-preview-wrap',
-        imgId: 'inventory-photo-preview',
-        removeId: 'inventory-photo-remove-btn',
         objectUrl: null,
         requestId: 0
     }
@@ -3823,14 +4152,11 @@ function compressNicPhoto(file, label = 'NIC photograph') {
 let detailNicRequest = 0;
 
 function clearDetailNicPhoto() {
-    if (detailNicObjectUrl) {
-        URL.revokeObjectURL(detailNicObjectUrl);
-        detailNicObjectUrl = null;
-    }
-    const img = document.getElementById('detail-nic-photo');
-    if (img) {
-        img.removeAttribute('src');
-        img.hidden = true;
+    detailNicObjectUrls.forEach((url) => revokeNicObjectUrl(url));
+    detailNicObjectUrls = [];
+    const list = document.getElementById('detail-nic-photos');
+    if (list) {
+        list.innerHTML = '';
     }
 }
 
@@ -3841,36 +4167,54 @@ function revokeDetailNicPhoto() {
 
 async function showNicPhotoInDetails(tenant) {
     const requestId = ++detailNicRequest;
-    const img = document.getElementById('detail-nic-photo');
+    const list = document.getElementById('detail-nic-photos');
     const empty = document.getElementById('detail-nic-empty');
     clearDetailNicPhoto();
-    if (!img || !empty) {
+    if (!list || !empty) {
         return;
     }
+
     empty.textContent = 'No NIC photograph on file';
-    if (!tenant.nicPhoto || !tenant.nicPhoto.key) {
+    const photos = tenantNicPhotoMeta(tenant);
+    if (photos.length === 0) {
         empty.hidden = false;
         return;
     }
+
     empty.hidden = true;
     try {
-        const blob = await api.fetchNicPhoto(tenant._id || tenant.id);
+        const tenantId = tenant._id || tenant.id;
+        for (const photo of photos) {
+            const blob = await api.fetchNicPhoto(tenantId, photo.id);
+            if (requestId !== detailNicRequest) {
+                return;
+            }
+            if (!blob) {
+                continue;
+            }
+            const objectUrl = URL.createObjectURL(blob);
+            detailNicObjectUrls.push(objectUrl);
+            const item = document.createElement('div');
+            item.className = 'nic-photo-preview-item';
+            const img = document.createElement('img');
+            img.className = 'nic-photo';
+            img.alt = 'NIC photograph';
+            img.src = objectUrl;
+            item.appendChild(img);
+            list.appendChild(item);
+        }
         if (requestId !== detailNicRequest) {
             return;
         }
-        if (!blob) {
+        if (detailNicObjectUrls.length === 0) {
             empty.hidden = false;
-            return;
         }
-        detailNicObjectUrl = URL.createObjectURL(blob);
-        img.src = detailNicObjectUrl;
-        img.hidden = false;
     } catch (error) {
         if (requestId !== detailNicRequest) {
             return;
         }
-        console.error('Could not load NIC photograph:', error);
-        empty.textContent = 'NIC photograph could not be loaded';
+        console.error('Could not load NIC photographs:', error);
+        empty.textContent = 'NIC photographs could not be loaded';
         empty.hidden = false;
     }
 }
@@ -3944,7 +4288,7 @@ function closeModal(modalId) {
                 
                 modalTitle.textContent = 'Add Inventory Item';
                 submitButton.textContent = 'Add Item';
-                resetRecordPhoto('inventory');
+                resetInventoryPhotoField();
             }
             
             // Reset modal title and button text for apartment modal

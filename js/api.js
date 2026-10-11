@@ -91,8 +91,8 @@ class APIService {
     }
 
     async uploadNicPhoto(id, blob) {
-        const response = await fetch(`${this.baseURL}${this.endpoints.tenants}/${id}/nic-photo`, {
-            method: 'PUT',
+        const response = await fetch(`${this.baseURL}${this.endpoints.tenants}/${id}/nic-photos`, {
+            method: 'POST',
             headers: await this.authHeaders({
                 'Content-Type': blob.type || 'image/jpeg'
             }),
@@ -105,12 +105,28 @@ class APIService {
         return data;
     }
 
-    async fetchNicPhoto(id) {
-        const response = await fetch(`${this.baseURL}${this.endpoints.tenants}/${id}/nic-photo`, {
+    async fetchNicPhoto(id, photoId) {
+        const path = photoId
+            ? `${this.endpoints.tenants}/${id}/nic-photos/${encodeURIComponent(photoId)}`
+            : `${this.endpoints.tenants}/${id}/nic-photo`;
+        const response = await fetch(`${this.baseURL}${path}`, {
             headers: await this.authHeaders()
         });
-        if (response.status === 404) {
+        if (response.status === 404 && photoId && photoId !== 'legacy') {
             return null;
+        }
+        // Older single-photo records may only be reachable via the legacy endpoint.
+        if (response.status === 404) {
+            const legacy = await fetch(`${this.baseURL}${this.endpoints.tenants}/${id}/nic-photo`, {
+                headers: await this.authHeaders()
+            });
+            if (legacy.status === 404) {
+                return null;
+            }
+            if (!legacy.ok) {
+                throw new Error('Could not load the NIC photograph');
+            }
+            return legacy.blob();
         }
         if (!response.ok) {
             let message = 'Could not load the NIC photograph';
@@ -127,7 +143,12 @@ class APIService {
         return response.blob();
     }
 
-    async deleteNicPhoto(id) {
+    async deleteNicPhoto(id, photoId) {
+        if (photoId) {
+            return this.request(`${this.endpoints.tenants}/${id}/nic-photos/${encodeURIComponent(photoId)}`, {
+                method: 'DELETE'
+            });
+        }
         return this.request(`${this.endpoints.tenants}/${id}/nic-photo`, {
             method: 'DELETE'
         });
@@ -143,9 +164,17 @@ class APIService {
         throw new Error('Unknown photograph type');
     }
 
+    supportsMultiRecordPhotos(kind) {
+        return kind === 'inventory';
+    }
+
     async uploadRecordPhoto(kind, id, blob) {
-        const response = await fetch(`${this.baseURL}${this.recordPhotoPath(kind)}/${id}/photo`, {
-            method: 'PUT',
+        const multi = this.supportsMultiRecordPhotos(kind);
+        const path = multi
+            ? `${this.recordPhotoPath(kind)}/${id}/photos`
+            : `${this.recordPhotoPath(kind)}/${id}/photo`;
+        const response = await fetch(`${this.baseURL}${path}`, {
+            method: multi ? 'POST' : 'PUT',
             headers: await this.authHeaders({
                 'Content-Type': blob.type || 'image/jpeg'
             }),
@@ -158,12 +187,31 @@ class APIService {
         return data;
     }
 
-    async fetchRecordPhoto(kind, id) {
-        const response = await fetch(`${this.baseURL}${this.recordPhotoPath(kind)}/${id}/photo`, {
+    async fetchRecordPhoto(kind, id, photoId) {
+        const base = this.recordPhotoPath(kind);
+        const path = photoId
+            ? `${base}/${id}/photos/${encodeURIComponent(photoId)}`
+            : `${base}/${id}/photo`;
+        const response = await fetch(`${this.baseURL}${path}`, {
             headers: await this.authHeaders()
         });
-        if (response.status === 404) {
+        if (response.status === 404 && photoId && photoId !== 'legacy') {
             return null;
+        }
+        if (response.status === 404) {
+            if (!photoId) {
+                return null;
+            }
+            const legacy = await fetch(`${this.baseURL}${base}/${id}/photo`, {
+                headers: await this.authHeaders()
+            });
+            if (legacy.status === 404) {
+                return null;
+            }
+            if (!legacy.ok) {
+                throw new Error('Could not load the photograph');
+            }
+            return legacy.blob();
         }
         if (!response.ok) {
             let message = 'Could not load the photograph';
@@ -180,7 +228,12 @@ class APIService {
         return response.blob();
     }
 
-    async deleteRecordPhoto(kind, id) {
+    async deleteRecordPhoto(kind, id, photoId) {
+        if (photoId && this.supportsMultiRecordPhotos(kind)) {
+            return this.request(`${this.recordPhotoPath(kind)}/${id}/photos/${encodeURIComponent(photoId)}`, {
+                method: 'DELETE'
+            });
+        }
         return this.request(`${this.recordPhotoPath(kind)}/${id}/photo`, {
             method: 'DELETE'
         });
@@ -570,7 +623,19 @@ class APIService {
             specialRequests: tenant.specialRequests,
             remarks: tenant.remarks,
             status: tenant.status,
-            hasNicPhoto: Boolean(tenant.nicPhoto && tenant.nicPhoto.key),
+            hasNicPhoto: Boolean(
+                (Array.isArray(tenant.nicPhotos) && tenant.nicPhotos.some((photo) => photo && photo.key)) ||
+                (tenant.nicPhoto && tenant.nicPhoto.key)
+            ),
+            nicPhotoCount: (() => {
+                const multi = Array.isArray(tenant.nicPhotos)
+                    ? tenant.nicPhotos.filter((photo) => photo && photo.key).length
+                    : 0;
+                if (multi > 0) {
+                    return multi;
+                }
+                return tenant.nicPhoto && tenant.nicPhoto.key ? 1 : 0;
+            })(),
             createdAt: tenant.createdAt,
             updatedAt: tenant.updatedAt
         };
@@ -611,7 +676,10 @@ class APIService {
             location: inventory.location,
             notes: inventory.notes,
             status: inventory.status,
-            hasPhoto: Boolean(inventory.photo && inventory.photo.key),
+            hasPhoto: Boolean(
+                (Array.isArray(inventory.photos) && inventory.photos.some((photo) => photo && photo.key)) ||
+                (inventory.photo && inventory.photo.key)
+            ),
             createdAt: inventory.createdAt,
             updatedAt: inventory.updatedAt
         };
