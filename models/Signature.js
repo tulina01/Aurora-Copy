@@ -19,6 +19,13 @@ const signatureSchema = new mongoose.Schema({
         uploadedAt: {
             type: Date,
             default: null
+        },
+        // Kept in Mongo so invoice/receipt PDFs can embed the signature on
+        // Netlify, where the local blob file is not available.
+        data: {
+            type: Buffer,
+            select: false,
+            default: undefined
         }
     }
 }, {
@@ -28,7 +35,8 @@ const signatureSchema = new mongoose.Schema({
 signatureSchema.index({ name: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
 
 signatureSchema.virtual('hasImage').get(function() {
-    return Boolean(this.image && this.image.key);
+    const image = this.image || {};
+    return Boolean(image.key || (image.data && image.data.length));
 });
 
 signatureSchema.set('toJSON', { virtuals: true });

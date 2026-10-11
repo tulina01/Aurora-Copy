@@ -234,7 +234,8 @@ router.put('/:id/image', readPng, async (req, res) => {
             $set: {
                 'image.key': key,
                 'image.contentType': detected,
-                'image.uploadedAt': uploadedAt
+                'image.uploadedAt': uploadedAt,
+                'image.data': buffer
             }
         });
 
@@ -258,12 +259,19 @@ router.get('/:id/image', async (req, res) => {
             });
         }
 
-        const signature = await Signature.findById(signatureId).select('image name');
+        const signature = await Signature.findById(signatureId).select('name image.key image.contentType +image.data');
         if (!signature) {
             return res.status(404).json({
                 success: false,
                 message: 'Signature not found'
             });
+        }
+        if (signature.image && signature.image.data && signature.image.data.length) {
+            const contentType = signature.image.contentType || 'image/png';
+            res.set('Content-Type', contentType);
+            res.set('Cache-Control', 'private, no-store');
+            res.set('Content-Disposition', 'inline; filename="signature.png"');
+            return res.send(signature.image.data);
         }
         if (!signature.image || !signature.image.key) {
             return res.status(404).json({
