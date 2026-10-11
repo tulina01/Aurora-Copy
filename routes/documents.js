@@ -55,6 +55,10 @@ function normalizeInclude(body) {
 }
 
 function normalizeSharedFields(body) {
+    const signatureImageBase64 = typeof body.signatureImageBase64 === 'string'
+        ? body.signatureImageBase64.trim()
+        : (typeof body.signaturePngBase64 === 'string' ? body.signaturePngBase64.trim() : '');
+
     return {
         documentDate: asString(body.documentDate),
         tenantName: asString(body.tenantName),
@@ -71,6 +75,7 @@ function normalizeSharedFields(body) {
         notes: asString(body.notes),
         signatureId: asString(body.signatureId),
         signerName: asString(body.signerName),
+        signatureImageBase64,
         include: normalizeInclude(body)
     };
 }

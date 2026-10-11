@@ -2528,6 +2528,38 @@ function downloadBlobFile(blob, filename) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function() {
+            const result = String(reader.result || '');
+            const comma = result.indexOf(',');
+            resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = function() {
+            reject(new Error('Could not read signature image'));
+        };
+        reader.readAsDataURL(blob);
+    });
+}
+
+async function attachSignatureImageToPayload(payload) {
+    if (!payload || !payload.signatureId || payload.include && payload.include.signature === false) {
+        return payload;
+    }
+
+    try {
+        const blob = await api.fetchSignatureImage(payload.signatureId);
+        if (!blob) {
+            return payload;
+        }
+        payload.signatureImageBase64 = await blobToBase64(blob);
+    } catch (error) {
+        console.warn('Could not attach signature image to PDF payload:', error.message);
+    }
+    return payload;
+}
+
 async function generatePrintDocument() {
     const generateBtn = document.getElementById('print-document-generate-btn');
     const { type, payload } = readPrintDocumentPayload();
@@ -2537,6 +2569,7 @@ async function generatePrintDocument() {
     }
 
     try {
+        await attachSignatureImageToPayload(payload);
         const result = await api.downloadDocumentPdf(type, payload);
         downloadBlobFile(result.blob, result.filename);
         showMessage(`${capitalizeLabel(type)} PDF downloaded`, 'success');
